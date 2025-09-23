@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ImageUpload } from '@/components/ui/image-upload';
+import { TagsInput } from '@/components/ui/tags-input';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -28,10 +30,42 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
     video_url: product?.video_url || '',
     category_id: product?.category_id || '',
   });
+  
+  const [imageUrls, setImageUrls] = useState<string[]>(product?.image_urls || []);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile } = useProfile();
+
+  // Load existing tags when editing a product
+  const { data: existingProductTags = [] } = useQuery({
+    queryKey: ['product-tags', product?.id],
+    queryFn: async () => {
+      if (!product?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('product_tags')
+        .select(`
+          tag_id,
+          tags!inner(name)
+        `)
+        .eq('product_id', product.id);
+
+      if (error) throw error;
+      return data.map((pt: any) => pt.tags.name);
+    },
+    enabled: !!product?.id,
+  });
+
+  // Update selected tags when existing tags are loaded
+  useEffect(() => {
+    if (product && existingProductTags.length > 0) {
+      setSelectedTags(existingProductTags);
+    } else if (!product) {
+      setSelectedTags([]);
+    }
+  }, [product, existingProductTags]);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -58,6 +92,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
         sell_price: Number(data.sell_price),
         category_id: data.category_id || null,
         organization_id: profile.organization_id,
+        image_urls: imageUrls,
       };
 
       if (product) {
@@ -73,6 +108,71 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
           .insert(payload);
 
         if (error) throw error;
+      }
+
+      // Handle tags - first get or create product to get its ID
+      let productId = product?.id;
+      if (!product) {
+        const { data: newProduct, error: productError } = await supabase
+          .from('products')
+          .select('id')
+          .eq('organization_id', profile.organization_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+        
+        if (productError) throw productError;
+        productId = newProduct.id;
+      }
+
+      // Remove existing product tags
+      if (productId) {
+        await supabase
+          .from('product_tags')
+          .delete()
+          .eq('product_id', productId);
+
+        // Add new tags
+        if (selectedTags.length > 0) {
+          // Get or create tags
+          const tagIds = [];
+          for (const tagName of selectedTags) {
+            let { data: existingTag } = await supabase
+              .from('tags')
+              .select('id')
+              .eq('name', tagName)
+              .eq('organization_id', profile.organization_id)
+              .maybeSingle();
+
+            if (!existingTag) {
+              const { data: newTag, error: tagError } = await supabase
+                .from('tags')
+                .insert({
+                  name: tagName,
+                  organization_id: profile.organization_id
+                })
+                .select('id')
+                .single();
+
+              if (tagError) throw tagError;
+              existingTag = newTag;
+            }
+
+            tagIds.push(existingTag.id);
+          }
+
+          // Link tags to product
+          const productTags = tagIds.map(tagId => ({
+            product_id: productId,
+            tag_id: tagId
+          }));
+
+          const { error: linkError } = await supabase
+            .from('product_tags')
+            .insert(productTags);
+
+          if (linkError) throw linkError;
+        }
       }
     },
     onSuccess: () => {
@@ -320,6 +420,18 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
           />
         </div>
       </div>
+
+      <ImageUpload
+        images={imageUrls}
+        onImagesChange={setImageUrls}
+        maxImages={5}
+      />
+
+      <TagsInput
+        selectedTags={selectedTags}
+        onTagsChange={setSelectedTags}
+        placeholder="Digite uma tag e pressione Enter..."
+      />
 
       <div className="flex justify-end space-x-2 pt-4">
         <Button type="button" variant="outline" onClick={onClose}>
