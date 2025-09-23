@@ -12,6 +12,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const stats = [
   {
@@ -78,6 +79,8 @@ const statusConfig = {
 };
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -122,7 +125,7 @@ export default function Dashboard() {
                   Últimas propostas criadas e seu status atual
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => navigate('/proposals')}>
                 Ver todas
                 <ArrowUpRight className="w-4 h-4 ml-1" />
               </Button>
@@ -172,21 +175,40 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button className="w-full justify-start gradient-primary text-white" size="lg">
+            <Button 
+              className="w-full justify-start gradient-primary text-white" 
+              size="lg"
+              onClick={() => navigate('/proposals')}
+            >
               <FileText className="w-4 h-4 mr-2" />
               Nova Proposta
             </Button>
-            <Button variant="outline" className="w-full justify-start" size="lg">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start" 
+              size="lg"
+              onClick={() => navigate('/clients')}
+            >
               <Users className="w-4 h-4 mr-2" />
               Cadastrar Cliente
             </Button>
-            <Button variant="outline" className="w-full justify-start" size="lg">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start" 
+              size="lg"
+              onClick={() => navigate('/products')}
+            >
               <Package className="w-4 h-4 mr-2" />
               Adicionar Produto
             </Button>
-            <Button variant="outline" className="w-full justify-start" size="lg">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start" 
+              size="lg"
+              onClick={() => navigate('/kits')}
+            >
               <TrendingUp className="w-4 h-4 mr-2" />
-              Relatórios
+              Gerenciar Kits
             </Button>
           </CardContent>
         </Card>

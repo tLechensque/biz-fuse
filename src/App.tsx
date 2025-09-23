@@ -8,6 +8,7 @@ import Proposals from "./pages/Proposals";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ProductsPage from "./pages/products/ProductsPage";
+import ClientsPage from "./pages/clients/ClientsPage";
 import { Layout } from "./components/layout/Layout";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -33,11 +34,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Index />
-                </ProtectedRoute>
-              } />
+              <Route path="/" element={<Index />} />
               <Route path="/proposals" element={
                 <ProtectedRoute>
                   <Layout>
@@ -52,16 +49,13 @@ const App = () => (
                   </Layout>
                 </ProtectedRoute>
               } />
-          <Route path="/clients" element={
-            <ProtectedRoute>
-              <Layout>
-                <div className="p-6">
-                  <h1 className="text-3xl font-bold mb-4">Clientes</h1>
-                  <p className="text-muted-foreground">Módulo de clientes em desenvolvimento...</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          } />
+              <Route path="/clients" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ClientsPage />
+                  </Layout>
+                </ProtectedRoute>
+              } />
           <Route path="/kits" element={
             <ProtectedRoute>
               <Layout>
