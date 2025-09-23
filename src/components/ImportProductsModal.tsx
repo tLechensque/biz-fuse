@@ -40,12 +40,18 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === 'text/csv') {
+    const validTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    
+    if (selectedFile && validTypes.includes(selectedFile.type)) {
       setFile(selectedFile);
     } else {
       toast({
         title: 'Arquivo inválido',
-        description: 'Por favor, selecione um arquivo .csv',
+        description: 'Por favor, selecione um arquivo .csv, .xls ou .xlsx',
         variant: 'destructive',
       });
     }
@@ -55,7 +61,7 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     if (!file) {
       toast({
         title: 'Nenhum arquivo selecionado',
-        description: 'Por favor, selecione um arquivo CSV para importar.',
+        description: 'Por favor, selecione um arquivo para importar.',
         variant: 'destructive',
       });
       return;
@@ -64,10 +70,27 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     setIsUploading(true);
 
     try {
-      const fileText = await file.text();
+      // Convert file to base64 for Excel files or text for CSV
+      let fileData: string;
+      let fileType: string;
+      
+      if (file.type === 'text/csv') {
+        fileData = await file.text();
+        fileType = 'csv';
+      } else {
+        // For Excel files, convert to base64
+        const arrayBuffer = await file.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        fileData = base64;
+        fileType = 'excel';
+      }
       
       const { data, error } = await supabase.functions.invoke('import-products', {
-        body: { csvData: fileText },
+        body: { 
+          fileData,
+          fileType,
+          fileName: file.name 
+        },
       });
 
       if (error) {
@@ -128,21 +151,21 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
           <div className="space-y-2">
             <h4 className="text-sm font-medium">2. Selecionar arquivo preenchido</h4>
             <p className="text-sm text-muted-foreground">
-              Selecione o arquivo CSV com os produtos preenchidos
+              Selecione o arquivo CSV, XLS ou XLSX com os produtos preenchidos
             </p>
             <div className="flex items-center justify-center w-full">
               <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
                   <p className="mb-2 text-sm text-muted-foreground">
-                    {file ? file.name : 'Clique para selecionar ou arraste o arquivo CSV'}
+                    {file ? file.name : 'Clique para selecionar ou arraste o arquivo'}
                   </p>
-                  <p className="text-xs text-muted-foreground">Apenas arquivos .csv</p>
+                  <p className="text-xs text-muted-foreground">Arquivos .csv, .xls ou .xlsx</p>
                 </div>
                 <Input
                   type="file"
                   className="hidden"
-                  accept=".csv"
+                  accept=".csv,.xls,.xlsx"
                   onChange={handleFileChange}
                 />
               </label>

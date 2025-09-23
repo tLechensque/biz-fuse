@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import * as XLSX from 'https://esm.sh/xlsx@0.18.5';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +39,29 @@ function parseCSV(csvText: string): string[][] {
   }
   
   return result;
+}
+
+// Excel parser function
+function parseExcel(base64Data: string): string[][] {
+  try {
+    // Decode base64 to binary
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Parse Excel file
+    const workbook = XLSX.read(bytes, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    
+    // Convert to array of arrays
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    return jsonData as string[][];
+  } catch (error) {
+    throw new Error(`Erro ao processar arquivo Excel: ${error.message}`);
+  }
 }
 
 function validateProductData(row: any): { isValid: boolean; errors: string[] } {
@@ -112,17 +136,25 @@ serve(async (req) => {
       throw new Error('Não foi possível identificar a organização do usuário');
     }
 
-    const { csvData } = await req.json();
+    const { fileData, fileType, fileName } = await req.json();
     
-    if (!csvData) {
-      throw new Error('Dados CSV não fornecidos');
+    if (!fileData) {
+      throw new Error('Dados do arquivo não fornecidos');
     }
 
-    console.log('Parsing CSV data...');
-    const rows = parseCSV(csvData);
+    console.log(`Parsing ${fileType} data from file: ${fileName}...`);
+    
+    let rows: string[][];
+    if (fileType === 'csv') {
+      rows = parseCSV(fileData);
+    } else if (fileType === 'excel') {
+      rows = parseExcel(fileData);
+    } else {
+      throw new Error('Tipo de arquivo não suportado');
+    }
     
     if (rows.length === 0) {
-      throw new Error('Arquivo CSV está vazio');
+      throw new Error('Arquivo está vazio');
     }
 
     // Get headers from first row
