@@ -6,6 +6,7 @@ import { Plus, Search, Edit, Trash2, Package } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/useDebounce';
 import { ProductForm } from './ProductForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -30,21 +31,22 @@ export interface Product {
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 400);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products', searchTerm],
+    queryKey: ['products', debouncedSearchTerm],
     queryFn: async () => {
       let query = supabase
         .from('products')
         .select('*')
         .order('name');
 
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%,brand.ilike.%${searchTerm}%`);
+      if (debouncedSearchTerm) {
+        query = query.or(`name.ilike.%${debouncedSearchTerm}%,sku.ilike.%${debouncedSearchTerm}%,brand.ilike.%${debouncedSearchTerm}%`);
       }
 
       const { data, error } = await query;
@@ -253,7 +255,7 @@ const ProductsPage = () => {
       {products.length === 0 && (
         <div className="text-center py-12">
           <p className="text-muted-foreground text-lg mb-4">
-            {searchTerm ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}
+            {debouncedSearchTerm ? 'Nenhum produto encontrado' : 'Nenhum produto cadastrado'}
           </p>
           <Button onClick={handleNewProduct}>
             <Plus className="h-4 w-4 mr-2" />
