@@ -236,12 +236,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
 
         <div className="space-y-2">
           <Label htmlFor="category">Categoria</Label>
-          <Select value={formData.category_id} onValueChange={(value) => handleInputChange('category_id', value)}>
+          <Select value={formData.category_id || "none"} onValueChange={(value) => handleInputChange('category_id', value === "none" ? "" : value)}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione uma categoria" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Sem categoria</SelectItem>
+              <SelectItem value="none">Sem categoria</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
                   {category.name}
