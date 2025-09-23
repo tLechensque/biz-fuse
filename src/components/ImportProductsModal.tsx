@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface ImportProductsModalProps {
@@ -13,9 +14,29 @@ interface ImportProductsModalProps {
   onSuccess: () => void;
 }
 
+interface ColumnMapping {
+  [userColumn: string]: string;
+}
+
+const SYSTEM_FIELDS = [
+  { value: 'name', label: 'Nome do Produto' },
+  { value: 'sku', label: 'SKU/Código' },
+  { value: 'simple_description', label: 'Descrição Simples' },
+  { value: 'full_description', label: 'Descrição Completa' },
+  { value: 'cost_price', label: 'Preço de Custo' },
+  { value: 'sell_price', label: 'Preço de Venda' },
+  { value: 'brand', label: 'Marca' },
+  { value: 'unit', label: 'Unidade' },
+  { value: 'category_id', label: 'ID da Categoria' },
+  { value: '', label: 'Ignorar esta coluna' }
+];
+
 export const ImportProductsModal = ({ open, onClose, onSuccess }: ImportProductsModalProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [step, setStep] = useState<'upload' | 'mapping'>('upload');
+  const [fileHeaders, setFileHeaders] = useState<string[]>([]);
+  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
   const { toast } = useToast();
 
   const downloadTemplate = (format: 'csv' | 'xlsx' = 'xlsx') => {
@@ -79,6 +100,89 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     }
   };
 
+  // Auto-mapeamento inteligente baseado em similaridade de nomes
+  const autoMapColumns = (headers: string[]): ColumnMapping => {
+    const mapping: ColumnMapping = {};
+    
+    headers.forEach(header => {
+      const lowerHeader = header.toLowerCase();
+      
+      // Mapeamento inteligente baseado em palavras-chave
+      if (lowerHeader.includes('nome') || lowerHeader.includes('produto') || lowerHeader.includes('name')) {
+        mapping[header] = 'name';
+      } else if (lowerHeader.includes('sku') || lowerHeader.includes('código') || lowerHeader.includes('codigo')) {
+        mapping[header] = 'sku';
+      } else if (lowerHeader.includes('descrição') && (lowerHeader.includes('simples') || lowerHeader.includes('curta'))) {
+        mapping[header] = 'simple_description';
+      } else if (lowerHeader.includes('descrição') && (lowerHeader.includes('completa') || lowerHeader.includes('detalhada'))) {
+        mapping[header] = 'full_description';
+      } else if (lowerHeader.includes('custo') || lowerHeader.includes('compra')) {
+        mapping[header] = 'cost_price';
+      } else if (lowerHeader.includes('venda') || lowerHeader.includes('preço') || lowerHeader.includes('preco') || lowerHeader.includes('valor')) {
+        mapping[header] = 'sell_price';
+      } else if (lowerHeader.includes('marca')) {
+        mapping[header] = 'brand';
+      } else if (lowerHeader.includes('unidade') || lowerHeader.includes('unit')) {
+        mapping[header] = 'unit';
+      } else {
+        // Se não encontrou correspondência, deixa vazio (ignorar)
+        mapping[header] = '';
+      }
+    });
+    
+    return mapping;
+  };
+
+  const readFileHeaders = async (file: File): Promise<string[]> => {
+    try {
+      if (file.type === 'text/csv') {
+        const text = await file.text();
+        const lines = text.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        return headers.filter(h => h.length > 0);
+      } else {
+        // Para arquivos Excel
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer);
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (data.length > 0) {
+          return (data[0] as string[]).filter(h => h && h.toString().trim().length > 0);
+        }
+        return [];
+      }
+    } catch (error) {
+      console.error('Erro ao ler cabeçalhos:', error);
+      throw new Error('Erro ao ler cabeçalhos do arquivo');
+    }
+  };
+
+  const handleNextStep = async () => {
+    if (!file) return;
+
+    try {
+      const headers = await readFileHeaders(file);
+      setFileHeaders(headers);
+      setColumnMapping(autoMapColumns(headers));
+      setStep('mapping');
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao processar arquivo',
+        description: error.message || 'Erro ao ler cabeçalhos do arquivo.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleMappingChange = (userColumn: string, systemField: string) => {
+    setColumnMapping(prev => ({
+      ...prev,
+      [userColumn]: systemField
+    }));
+  };
+
   const handleImport = async () => {
     if (!file) {
       toast({
@@ -111,7 +215,8 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
         body: { 
           fileData,
           fileType,
-          fileName: file.name 
+          fileName: file.name,
+          columnMapping: step === 'mapping' ? columnMapping : undefined
         },
       });
 
@@ -125,8 +230,7 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
       });
 
       onSuccess();
-      onClose();
-      setFile(null);
+      resetForm();
     } catch (error: any) {
       console.error('Erro na importação:', error);
       toast({
@@ -141,92 +245,153 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
 
   const resetForm = () => {
     setFile(null);
+    setStep('upload');
+    setFileHeaders([]);
+    setColumnMapping({});
     onClose();
   };
 
+
   return (
     <Dialog open={open} onOpenChange={resetForm}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Importar Produtos
+            {step === 'upload' ? 'Importar Produtos' : 'Mapear Colunas'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">1. Baixar modelo de planilha</h4>
-            <p className="text-sm text-muted-foreground">
-              Baixe o arquivo modelo com os cabeçalhos corretos
-            </p>
+        {step === 'upload' ? (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">1. Baixar modelo de planilha (opcional)</h4>
+              <p className="text-sm text-muted-foreground">
+                Baixe um arquivo modelo se você não tem uma planilha pronta
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => downloadTemplate('xlsx')}
+                  className="flex-1"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Baixar Modelo Excel
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => downloadTemplate('csv')}
+                  className="flex-1"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Baixar Modelo CSV
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">2. Selecionar sua planilha</h4>
+              <p className="text-sm text-muted-foreground">
+                Selecione o arquivo com seus produtos (qualquer formato de Excel ou CSV)
+              </p>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
+                    <p className="mb-2 text-sm text-muted-foreground">
+                      {file ? file.name : 'Clique para selecionar ou arraste o arquivo'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Arquivos .csv, .xls ou .xlsx</p>
+                  </div>
+                  <Input
+                    type="file"
+                    className="hidden"
+                    accept=".csv,.xls,.xlsx"
+                    onChange={handleFileChange}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button 
+                onClick={handleNextStep} 
+                disabled={!file}
+                className="w-full"
+              >
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Próximo: Mapear Colunas
+              </Button>
+              <Button variant="outline" onClick={resetForm}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Mapear colunas da sua planilha</h4>
+              <p className="text-sm text-muted-foreground">
+                Associe cada coluna do seu arquivo aos campos do sistema. Deixe em "Ignorar" se não quiser importar uma coluna.
+              </p>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-3 border rounded-lg p-4">
+              {fileHeaders.map((header, index) => (
+                <div key={index} className="grid grid-cols-2 gap-4 items-center py-2 border-b border-border/50 last:border-b-0">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-foreground">
+                      Coluna: {header}
+                    </label>
+                  </div>
+                  <Select
+                    value={columnMapping[header] || ''}
+                    onValueChange={(value) => handleMappingChange(header, value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione o campo correspondente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SYSTEM_FIELDS.map((field) => (
+                        <SelectItem key={field.value} value={field.value}>
+                          {field.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+
             <div className="flex gap-2">
               <Button 
-                variant="outline" 
-                onClick={() => downloadTemplate('xlsx')}
+                variant="outline"
+                onClick={() => setStep('upload')}
                 className="flex-1"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Baixar Modelo Excel
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar
               </Button>
               <Button 
-                variant="outline" 
-                onClick={() => downloadTemplate('csv')}
+                onClick={handleImport} 
+                disabled={isUploading}
                 className="flex-1"
               >
-                <Download className="h-4 w-4 mr-2" />
-                Baixar Modelo CSV
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Importando...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Importar Produtos
+                  </>
+                )}
               </Button>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">2. Selecionar arquivo preenchido</h4>
-            <p className="text-sm text-muted-foreground">
-              Selecione o arquivo CSV, XLS ou XLSX com os produtos preenchidos
-            </p>
-            <div className="flex items-center justify-center w-full">
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className="w-8 h-8 mb-4 text-muted-foreground" />
-                  <p className="mb-2 text-sm text-muted-foreground">
-                    {file ? file.name : 'Clique para selecionar ou arraste o arquivo'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Arquivos .csv, .xls ou .xlsx</p>
-                </div>
-                <Input
-                  type="file"
-                  className="hidden"
-                  accept=".csv,.xls,.xlsx"
-                  onChange={handleFileChange}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Button 
-              onClick={handleImport} 
-              disabled={!file || isUploading}
-              className="w-full"
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Importando...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Importar Produtos
-                </>
-              )}
-            </Button>
-            <Button variant="outline" onClick={resetForm}>
-              Cancelar
-            </Button>
-          </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );

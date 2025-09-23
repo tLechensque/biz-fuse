@@ -27,6 +27,10 @@ interface ImportResult {
   errors: string[];
 }
 
+interface ColumnMapping {
+  [userColumn: string]: string;
+}
+
 // Simple CSV parser function
 function parseCSV(csvText: string): string[][] {
   const lines = csvText.split('\n').filter(line => line.trim() !== '');
@@ -62,6 +66,24 @@ function parseExcel(base64Data: string): string[][] {
   } catch (error) {
     throw new Error(`Erro ao processar arquivo Excel: ${error.message}`);
   }
+}
+
+// Map row data based on column mapping
+function mapRowData(
+  headers: string[], 
+  rowValues: string[], 
+  columnMapping: ColumnMapping
+): any {
+  const mappedData: any = {};
+  
+  headers.forEach((header, index) => {
+    const systemField = columnMapping[header];
+    if (systemField && systemField !== '' && rowValues[index] !== undefined) {
+      mappedData[systemField] = rowValues[index];
+    }
+  });
+  
+  return mappedData;
 }
 
 function validateProductData(row: any): { isValid: boolean; errors: string[] } {
@@ -136,13 +158,14 @@ serve(async (req) => {
       throw new Error('Não foi possível identificar a organização do usuário');
     }
 
-    const { fileData, fileType, fileName } = await req.json();
+    const { fileData, fileType, fileName, columnMapping } = await req.json();
     
     if (!fileData) {
       throw new Error('Dados do arquivo não fornecidos');
     }
 
     console.log(`Parsing ${fileType} data from file: ${fileName}...`);
+    console.log('Column mapping provided:', columnMapping ? 'Yes' : 'No');
     
     let rows: string[][];
     if (fileType === 'csv') {
@@ -157,11 +180,12 @@ serve(async (req) => {
       throw new Error('Arquivo está vazio');
     }
 
-    // Get headers from first row
-    const headers = rows[0].map(h => h.toLowerCase());
+    // Get headers from first row (keep original case for mapping)
+    const headers = rows[0].map(h => h.toString().trim());
     const dataRows = rows.slice(1);
 
     console.log(`Found ${dataRows.length} product rows to import`);
+    console.log('Headers found:', headers);
     
     const result: ImportResult = {
       success: true,
@@ -175,14 +199,20 @@ serve(async (req) => {
       const row = dataRows[i];
       
       try {
-        // Create product object from CSV row
-        const productData: any = {};
+        let productData: any = {};
         
-        headers.forEach((header, index) => {
-          if (row[index] !== undefined) {
-            productData[header] = row[index];
-          }
-        });
+        if (columnMapping) {
+          // Use column mapping to map user columns to system fields
+          productData = mapRowData(headers, row, columnMapping);
+        } else {
+          // Fallback: legacy mode - assume headers match system field names
+          const lowerHeaders = headers.map(h => h.toLowerCase());
+          lowerHeaders.forEach((header, index) => {
+            if (row[index] !== undefined) {
+              productData[header] = row[index];
+            }
+          });
+        }
 
         // Validate the product data
         const validation = validateProductData(productData);
