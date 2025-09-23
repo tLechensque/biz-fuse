@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, Download, FileSpreadsheet, Loader2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface ImportProductsModalProps {
   open: boolean;
@@ -17,25 +18,46 @@ export const ImportProductsModal = ({ open, onClose, onSuccess }: ImportProducts
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
-  const downloadTemplate = () => {
-    const csvContent = `name,sku,simple_description,full_description,cost_price,sell_price,brand,unit,category_id
+  const downloadTemplate = (format: 'csv' | 'xlsx' = 'xlsx') => {
+    if (format === 'csv') {
+      const csvContent = `name,sku,simple_description,full_description,cost_price,sell_price,brand,unit,category_id
 Produto Exemplo,SKU001,Descrição simples,Descrição completa do produto,50.00,100.00,Marca Exemplo,pç,
 Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca,kg,`;
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'modelo_importacao_produtos.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    
-    toast({
-      title: 'Modelo baixado',
-      description: 'Arquivo modelo_importacao_produtos.csv baixado com sucesso.',
-    });
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'modelo_importacao_produtos.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: 'Modelo baixado',
+        description: 'Arquivo modelo_importacao_produtos.csv baixado com sucesso.',
+      });
+    } else {
+      // Create Excel template
+      const templateData = [
+        ['name', 'sku', 'simple_description', 'full_description', 'cost_price', 'sell_price', 'brand', 'unit', 'category_id'],
+        ['Produto Exemplo', 'SKU001', 'Descrição simples', 'Descrição completa do produto', 50.00, 100.00, 'Marca Exemplo', 'pç', ''],
+        ['Produto 2', 'SKU002', 'Outra descrição', 'Descrição detalhada', 25.50, 60.00, 'Outra Marca', 'kg', '']
+      ];
+      
+      const worksheet = XLSX.utils.aoa_to_sheet(templateData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
+      
+      // Generate Excel file and download
+      XLSX.writeFile(workbook, 'modelo_importacao_produtos.xlsx');
+      
+      toast({
+        title: 'Modelo baixado',
+        description: 'Arquivo modelo_importacao_produtos.xlsx baixado com sucesso.',
+      });
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,14 +160,24 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
             <p className="text-sm text-muted-foreground">
               Baixe o arquivo modelo com os cabeçalhos corretos
             </p>
-            <Button 
-              variant="outline" 
-              onClick={downloadTemplate}
-              className="w-full"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Baixar Modelo CSV
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => downloadTemplate('xlsx')}
+                className="flex-1"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Baixar Modelo Excel
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => downloadTemplate('csv')}
+                className="flex-1"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Baixar Modelo CSV
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-2">
