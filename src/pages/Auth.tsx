@@ -26,20 +26,66 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
+  // Input validation functions
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password: string): boolean => {
+    return password.length >= 8;
+  };
+
+  const sanitizeInput = (input: string): string => {
+    return input.trim().replace(/[<>]/g, '');
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Input validation
+    const sanitizedEmail = sanitizeInput(email);
+    const sanitizedName = sanitizeInput(name);
+    
+    if (!validateEmail(sanitizedEmail)) {
+      toast({
+        title: 'E-mail inválido',
+        description: 'Por favor, insira um e-mail válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!validatePassword(password)) {
+      toast({
+        title: 'Senha muito fraca',
+        description: 'A senha deve ter pelo menos 8 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!sanitizedName.trim()) {
+      toast({
+        title: 'Nome obrigatório',
+        description: 'Por favor, insira seu nome.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setLoading(true);
     
     try {
       const redirectUrl = `${window.location.origin}/`;
       
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: sanitizedEmail,
         password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            name: name
+            name: sanitizedName
           }
         }
       });
@@ -74,11 +120,33 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Input validation
+    const sanitizedEmail = sanitizeInput(email);
+    
+    if (!validateEmail(sanitizedEmail)) {
+      toast({
+        title: 'E-mail inválido',
+        description: 'Por favor, insira um e-mail válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!password.trim()) {
+      toast({
+        title: 'Senha obrigatória',
+        description: 'Por favor, insira sua senha.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     setLoading(true);
     
     try {
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: sanitizedEmail,
         password,
       });
 

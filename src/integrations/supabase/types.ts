@@ -401,7 +401,7 @@ export type Database = {
           email: string
           id: string
           name: string
-          organization_id: string | null
+          organization_id: string
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
           user_id: string
@@ -411,7 +411,7 @@ export type Database = {
           email: string
           id?: string
           name: string
-          organization_id?: string | null
+          organization_id: string
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id: string
@@ -421,7 +421,7 @@ export type Database = {
           email?: string
           id?: string
           name?: string
-          organization_id?: string | null
+          organization_id?: string
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string
@@ -600,7 +600,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_organization_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      is_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       proposal_status:

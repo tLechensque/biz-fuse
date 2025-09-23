@@ -94,10 +94,32 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
     },
   });
 
+  // Input validation and sanitization functions
+  const sanitizeInput = (input: string): string => {
+    return input.trim().replace(/[<>"/]/g, '');
+  };
+
+  const validateUrl = (url: string): boolean => {
+    if (!url) return true; // Optional field
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) {
+    // Sanitize text inputs
+    const sanitizedName = sanitizeInput(formData.name);
+    const sanitizedDescription = sanitizeInput(formData.simple_description);
+    const sanitizedFullDescription = sanitizeInput(formData.full_description);
+    const sanitizedBrand = sanitizeInput(formData.brand || '');
+    const sanitizedSku = sanitizeInput(formData.sku || '');
+    
+    if (!sanitizedName.trim()) {
       toast({
         title: 'Erro de validação',
         description: 'O nome do produto é obrigatório.',
@@ -115,6 +137,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
       return;
     }
 
+    if (formData.video_url && !validateUrl(formData.video_url)) {
+      toast({
+        title: 'URL de vídeo inválida',
+        description: 'Por favor, insira uma URL válida para o vídeo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (formData.sell_price <= formData.cost_price) {
       toast({
         title: 'Atenção',
@@ -123,7 +154,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
       });
     }
 
-    mutation.mutate(formData);
+    // Update form data with sanitized values
+    const sanitizedFormData = {
+      ...formData,
+      name: sanitizedName,
+      simple_description: sanitizedDescription,
+      full_description: sanitizedFullDescription,
+      brand: sanitizedBrand,
+      sku: sanitizedSku
+    };
+    
+    mutation.mutate(sanitizedFormData);
   };
 
   const handleInputChange = (field: keyof typeof formData, value: string | number) => {

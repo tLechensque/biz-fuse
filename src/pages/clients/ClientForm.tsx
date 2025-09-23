@@ -74,10 +74,33 @@ export const ClientForm: React.FC<ClientFormProps> = ({ client, onClose }) => {
     },
   });
 
+  // Input validation and sanitization functions
+  const sanitizeInput = (input: string): string => {
+    return input.trim().replace(/[<>"/]/g, '');
+  };
+
+  const validateEmail = (email: string): boolean => {
+    if (!email) return true; // Optional field
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone: string): boolean => {
+    if (!phone) return true; // Optional field
+    const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+    return phoneRegex.test(phone);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) {
+    // Sanitize inputs
+    const sanitizedName = sanitizeInput(formData.name);
+    const sanitizedEmail = sanitizeInput(formData.email || '');
+    const sanitizedPhone = sanitizeInput(formData.phone || '');
+    const sanitizedAddress = sanitizeInput(formData.address || '');
+    
+    if (!sanitizedName.trim()) {
       toast({
         title: 'Erro de validação',
         description: 'O nome do cliente é obrigatório.',
@@ -86,7 +109,34 @@ export const ClientForm: React.FC<ClientFormProps> = ({ client, onClose }) => {
       return;
     }
 
-    mutation.mutate(formData);
+    if (sanitizedEmail && !validateEmail(sanitizedEmail)) {
+      toast({
+        title: 'E-mail inválido',
+        description: 'Por favor, insira um e-mail válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (sanitizedPhone && !validatePhone(sanitizedPhone)) {
+      toast({
+        title: 'Telefone inválido',
+        description: 'Por favor, insira um telefone válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Update form data with sanitized values
+    const sanitizedFormData = {
+      ...formData,
+      name: sanitizedName,
+      email: sanitizedEmail,
+      phone: sanitizedPhone,
+      address: sanitizedAddress
+    };
+    
+    mutation.mutate(sanitizedFormData);
   };
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
