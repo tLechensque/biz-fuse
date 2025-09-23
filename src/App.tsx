@@ -8,7 +8,15 @@ import Proposals from "./pages/Proposals";
 import NotFound from "./pages/NotFound";
 import { Layout } from "./components/layout/Layout";
 
-const queryClient = new QueryClient();
+// Create QueryClient instance outside component to prevent recreation
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
