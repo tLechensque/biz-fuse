@@ -83,7 +83,7 @@ function mapRowData(
   
   headers.forEach((header, index) => {
     const systemField = columnMapping[header];
-    if (systemField && systemField !== '' && rowValues[index] !== undefined) {
+    if (systemField && systemField !== 'ignore' && rowValues[index] !== undefined) {
       mappedData[systemField] = rowValues[index];
     }
   });

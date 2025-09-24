@@ -33,7 +33,7 @@ const SYSTEM_FIELDS = [
   { value: 'brand', label: 'Marca' },
   { value: 'unit', label: 'Unidade' },
   { value: 'category_id', label: 'ID da Categoria' },
-  { value: '', label: 'Ignorar esta coluna' }
+  { value: 'ignore', label: 'Ignorar esta coluna' }
 ];
 
 export const ImportProductsModal = ({ open, onClose, onSuccess }: ImportProductsModalProps) => {
@@ -132,8 +132,8 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
       } else if (lowerHeader.includes('unidade') || lowerHeader.includes('unit')) {
         mapping[header] = 'unit';
       } else {
-        // Se não encontrou correspondência, deixa vazio (ignorar)
-        mapping[header] = '';
+        // Se não encontrou correspondência, deixa como ignorar
+        mapping[header] = 'ignore';
       }
     });
     
