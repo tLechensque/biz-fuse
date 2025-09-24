@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, Download, FileSpreadsheet, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import { Upload, Download, FileText, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface ImportProductsModalProps {
   open: boolean;
@@ -16,11 +15,6 @@ interface ImportProductsModalProps {
 
 interface ColumnMapping {
   [userColumn: string]: string;
-}
-
-interface SheetInfo {
-  name: string;
-  headers: string[];
 }
 
 const SYSTEM_FIELDS = [
@@ -41,69 +35,41 @@ const SYSTEM_FIELDS = [
 export const ImportProductsModal = ({ open, onClose, onSuccess }: ImportProductsModalProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [step, setStep] = useState<'upload' | 'sheet-selection' | 'mapping'>('upload');
-  const [sheets, setSheets] = useState<SheetInfo[]>([]);
-  const [selectedSheet, setSelectedSheet] = useState<string>('');
+  const [step, setStep] = useState<'upload' | 'mapping'>('upload');
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
   const { toast } = useToast();
 
-  const downloadTemplate = (format: 'csv' | 'xlsx' = 'xlsx') => {
-    if (format === 'csv') {
-      const csvContent = `name,sku,simple_description,full_description,cost_price,sell_price,brand,unit,category_id
-Produto Exemplo,SKU001,Descrição simples,Descrição completa do produto,50.00,100.00,Marca Exemplo,pç,
-Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca,kg,`;
-      
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'modelo_importacao_produtos.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: 'Modelo baixado',
-        description: 'Arquivo modelo_importacao_produtos.csv baixado com sucesso.',
-      });
-    } else {
-      // Create Excel template
-      const templateData = [
-        ['name', 'sku', 'simple_description', 'full_description', 'cost_price', 'sell_price', 'brand', 'unit', 'category_id'],
-        ['Produto Exemplo', 'SKU001', 'Descrição simples', 'Descrição completa do produto', 50.00, 100.00, 'Marca Exemplo', 'pç', ''],
-        ['Produto 2', 'SKU002', 'Outra descrição', 'Descrição detalhada', 25.50, 60.00, 'Outra Marca', 'kg', '']
-      ];
-      
-      const worksheet = XLSX.utils.aoa_to_sheet(templateData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos');
-      
-      // Generate Excel file and download
-      XLSX.writeFile(workbook, 'modelo_importacao_produtos.xlsx');
-      
-      toast({
-        title: 'Modelo baixado',
-        description: 'Arquivo modelo_importacao_produtos.xlsx baixado com sucesso.',
-      });
-    }
+  const downloadTemplate = () => {
+    const csvContent = `name,sku,simple_description,full_description,cost_price,sell_price,brand,unit,category_name
+Produto Exemplo,SKU001,Descrição simples,Descrição completa do produto,50.00,100.00,Marca Exemplo,pç,Eletrônicos
+Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca,kg,Casa e Jardim`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'modelo_importacao_produtos.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    toast({
+      title: 'Modelo baixado',
+      description: 'Arquivo modelo_importacao_produtos.csv baixado com sucesso.',
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    const validTypes = [
-      'text/csv',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ];
     
-    if (selectedFile && validTypes.includes(selectedFile.type)) {
+    if (selectedFile && selectedFile.type === 'text/csv') {
       setFile(selectedFile);
     } else {
       toast({
         title: 'Arquivo inválido',
-        description: 'Por favor, selecione um arquivo .csv, .xls ou .xlsx',
+        description: 'Por favor, selecione apenas arquivos .csv',
         variant: 'destructive',
       });
     }
@@ -148,42 +114,22 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     return mapping;
   };
 
-  const preProcessFile = async (file: File): Promise<SheetInfo[]> => {
+  const preProcessFile = async (file: File) => {
     try {
-      let fileData: string;
-      let fileType: string;
+      const fileData = await file.text();
+      const lines = fileData.split('\n').filter(line => line.trim());
       
-      if (file.type === 'text/csv') {
-        fileData = await file.text();
-        fileType = 'csv';
-      } else {
-        // For Excel files, convert to base64
-        const arrayBuffer = await file.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        fileData = base64;
-        fileType = 'excel';
+      if (lines.length < 1) {
+        throw new Error('O arquivo CSV está vazio ou não contém dados válidos');
       }
+
+      // Processar cabeçalho
+      const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
       
-      const { data, error } = await supabase.functions.invoke('pre-process-sheet', {
-        body: { 
-          fileData,
-          fileType,
-          fileName: file.name
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao processar arquivo');
-      }
-
-      return data.sheets;
+      return headers;
     } catch (error) {
-      console.error('Erro ao pré-processar arquivo:', error);
-      throw new Error('Erro ao processar arquivo');
+      console.error('Erro ao processar arquivo CSV:', error);
+      throw new Error('Erro ao processar arquivo CSV. Verifique se o formato está correto.');
     }
   };
 
@@ -191,35 +137,16 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     if (!file) return;
 
     try {
-      const sheetsData = await preProcessFile(file);
-      setSheets(sheetsData);
-      
-      // If only one sheet, auto-select it and go to mapping
-      if (sheetsData.length === 1) {
-        setSelectedSheet(sheetsData[0].name);
-        setFileHeaders(sheetsData[0].headers);
-        setColumnMapping(autoMapColumns(sheetsData[0].headers));
-        setStep('mapping');
-      } else {
-        // Multiple sheets, let user choose
-        setStep('sheet-selection');
-      }
+      const headers = await preProcessFile(file);
+      setFileHeaders(headers);
+      setColumnMapping(autoMapColumns(headers));
+      setStep('mapping');
     } catch (error: any) {
       toast({
         title: 'Erro ao processar arquivo',
         description: error.message || 'Erro ao processar arquivo.',
         variant: 'destructive',
       });
-    }
-  };
-
-  const handleSheetSelection = (sheetName: string) => {
-    setSelectedSheet(sheetName);
-    const sheet = sheets.find(s => s.name === sheetName);
-    if (sheet) {
-      setFileHeaders(sheet.headers);
-      setColumnMapping(autoMapColumns(sheet.headers));
-      setStep('mapping');
     }
   };
 
@@ -243,28 +170,12 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     setIsUploading(true);
 
     try {
-      // Convert file to base64 for Excel files or text for CSV
-      let fileData: string;
-      let fileType: string;
-      
-      if (file.type === 'text/csv') {
-        fileData = await file.text();
-        fileType = 'csv';
-      } else {
-        // For Excel files, convert to base64
-        const arrayBuffer = await file.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        fileData = base64;
-        fileType = 'excel';
-      }
+      const fileData = await file.text();
       
       const { data, error } = await supabase.functions.invoke('import-products', {
         body: { 
           fileData,
-          fileType,
-          fileName: file.name,
-          selectedSheet: selectedSheet,
-          columnMapping: step === 'mapping' ? columnMapping : undefined
+          columnMapping: columnMapping
         },
       });
 
@@ -294,8 +205,6 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
   const resetForm = () => {
     setFile(null);
     setStep('upload');
-    setSheets([]);
-    setSelectedSheet('');
     setFileHeaders([]);
     setColumnMapping({});
     onClose();
@@ -307,9 +216,8 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
+            <FileText className="h-5 w-5" />
             {step === 'upload' && 'Importar Produtos'}
-            {step === 'sheet-selection' && 'Selecionar Aba'}
             {step === 'mapping' && 'Mapear Colunas'}
           </DialogTitle>
         </DialogHeader>
@@ -321,30 +229,20 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
               <p className="text-sm text-muted-foreground">
                 Baixe um arquivo modelo se você não tem uma planilha pronta
               </p>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => downloadTemplate('xlsx')}
-                  className="flex-1"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Baixar Modelo Excel
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => downloadTemplate('csv')}
-                  className="flex-1"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Baixar Modelo CSV
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                onClick={downloadTemplate}
+                className="w-full"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Baixar Modelo CSV
+              </Button>
             </div>
 
             <div className="space-y-2">
               <h4 className="text-sm font-medium">2. Selecionar sua planilha</h4>
               <p className="text-sm text-muted-foreground">
-                Selecione o arquivo com seus produtos (qualquer formato de Excel ou CSV)
+                Selecione o arquivo CSV com seus produtos
               </p>
               <div className="flex items-center justify-center w-full">
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
@@ -353,12 +251,12 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
                     <p className="mb-2 text-sm text-muted-foreground">
                       {file ? file.name : 'Clique para selecionar ou arraste o arquivo'}
                     </p>
-                    <p className="text-xs text-muted-foreground">Arquivos .csv, .xls ou .xlsx</p>
+                    <p className="text-xs text-muted-foreground">Apenas arquivos .csv</p>
                   </div>
                   <Input
                     type="file"
                     className="hidden"
-                    accept=".csv,.xls,.xlsx"
+                    accept=".csv"
                     onChange={handleFileChange}
                   />
                 </label>
@@ -379,53 +277,10 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
               </Button>
             </div>
           </div>
-        ) : step === 'sheet-selection' ? (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Selecionar aba para importação</h4>
-              <p className="text-sm text-muted-foreground">
-                Seu arquivo possui múltiplas abas. Selecione a aba que contém os dados dos produtos que você deseja importar.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {sheets.map((sheet, index) => (
-                <div 
-                  key={index} 
-                  className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleSheetSelection(sheet.name)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                      <h5 className="font-medium">{sheet.name}</h5>
-                      <p className="text-sm text-muted-foreground">
-                        {sheet.headers.length} colunas encontradas
-                      </p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    <strong>Colunas:</strong> {sheet.headers.slice(0, 5).join(', ')}{sheet.headers.length > 5 ? '...' : ''}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-2">
-              <Button 
-                variant="outline"
-                onClick={() => setStep('upload')}
-                className="flex-1"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-            </div>
-          </div>
         ) : (
           <div className="space-y-6">
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">Mapear colunas da aba "{selectedSheet}"</h4>
+              <h4 className="text-sm font-medium">Mapear colunas do arquivo CSV</h4>
               <p className="text-sm text-muted-foreground">
                 Associe cada coluna do seu arquivo aos campos do sistema. Deixe em "Ignorar" se não quiser importar uma coluna.
               </p>
@@ -461,7 +316,7 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
             <div className="flex gap-2">
               <Button 
                 variant="outline"
-                onClick={() => sheets.length > 1 ? setStep('sheet-selection') : setStep('upload')}
+                onClick={() => setStep('upload')}
                 className="flex-1"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
