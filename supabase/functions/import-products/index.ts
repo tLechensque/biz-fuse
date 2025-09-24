@@ -245,21 +245,20 @@ serve(async (req) => {
   try {
     console.log('Starting product import...');
     
-    // DEBUG: Skip organization ID check for now to focus on file reading
-    // const supabaseClient = createClient(
-    //   Deno.env.get('SUPABASE_URL') ?? '',
-    //   Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    //   {
-    //     global: {
-    //       headers: { Authorization: req.headers.get('Authorization')! },
-    //     },
-    //   }
-    // );
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    );
 
-    // const organizationId = await getUserOrganizationId(supabaseClient);
-    // if (!organizationId) {
-    //   throw new Error('Não foi possível identificar a organização do usuário');
-    // }
+    const organizationId = await getUserOrganizationId(supabaseClient);
+    if (!organizationId) {
+      throw new Error('Não foi possível identificar a organização do usuário');
+    }
     
     const { fileData, fileType, fileName, selectedSheet, columnMapping } = await req.json();
     
@@ -308,27 +307,7 @@ serve(async (req) => {
       throw new Error(`Falha ao converter a planilha para JSON. Verifique se a primeira aba contém dados tabulares simples. Detalhes: ${e.message}`);
     }
 
-    // DEBUG: Return sample data for debugging (comment out all database operations)
-    console.log('File reading and conversion successful! Returning sample data...');
-    
-    return new Response(JSON.stringify({ 
-      success: true,
-      message: 'Leitura e conversão da planilha bem-sucedidas!', 
-      file_info: {
-        file_name: fileName,
-        file_type: fileType,
-        selected_sheet: selectedSheet,
-        total_rows: jsonData.length,
-        headers: headers
-      },
-      data_sample: jsonData.slice(0, 5) 
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
-
-    // ===== ALL DATABASE OPERATIONS COMMENTED OUT FOR DEBUGGING =====
-    /*
+    console.log('File reading and conversion successful! Starting database operations...');
     // Create flexible column mapping if none provided
     let effectiveMapping: ColumnMapping;
     
@@ -455,7 +434,6 @@ serve(async (req) => {
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-    */
 
   } catch (error) {
     console.error('Error in import-products function:', error);
