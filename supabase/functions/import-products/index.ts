@@ -75,6 +75,41 @@ function parseExcel(base64Data: string, selectedSheet?: string): string[][] {
   }
 }
 
+// Create flexible column mapping for user-friendly column names
+function createFlexibleColumnMapping(headers: string[]): ColumnMapping {
+  const mapping: ColumnMapping = {};
+  
+  // Define flexible column name patterns (case-insensitive)
+  const columnPatterns: { [key: string]: string[] } = {
+    'name': ['nome', 'name', 'produto', 'product'],
+    'sku': ['sku', 'codigo', 'code'],
+    'simple_description': ['descricao_simples', 'desc_simples', 'simple_description', 'description'],
+    'full_description': ['descricao_completa', 'desc_completa', 'full_description', 'descricao'],
+    'cost_price': ['preco_custo', 'custo', 'cost_price', 'cost'],
+    'sell_price': ['preco_venda', 'venda', 'sell_price', 'price', 'preco'],
+    'brand': ['marca', 'brand'],
+    'unit': ['unidade', 'unit', 'un'],
+    'image_urls': ['imagens', 'images', 'image_urls', 'fotos'],
+    'stock': ['estoque', 'stock', 'quantidade', 'qty'],
+    'category_name': ['categoria', 'category', 'cat']
+  };
+  
+  headers.forEach(header => {
+    const normalizedHeader = header.toLowerCase().trim();
+    
+    // Find matching system field for this header
+    for (const [systemField, patterns] of Object.entries(columnPatterns)) {
+      if (patterns.some(pattern => normalizedHeader.includes(pattern))) {
+        mapping[header] = systemField;
+        break;
+      }
+    }
+  });
+  
+  console.log('Created flexible column mapping:', mapping);
+  return mapping;
+}
+
 // Map row data based on column mapping
 function mapRowData(
   headers: string[], 
@@ -85,7 +120,7 @@ function mapRowData(
   
   headers.forEach((header, index) => {
     const systemField = columnMapping[header];
-    if (systemField && systemField !== 'ignore' && rowValues[index] !== undefined) {
+    if (systemField && systemField !== 'ignore' && rowValues[index] !== undefined && rowValues[index] !== '') {
       mappedData[systemField] = rowValues[index];
     }
   });
@@ -241,6 +276,19 @@ serve(async (req) => {
 
     console.log(`Found ${dataRows.length} product rows to import`);
     console.log('Headers found:', headers);
+
+    // Create flexible column mapping if none provided
+    let effectiveMapping: ColumnMapping;
+    
+    if (columnMapping && Object.keys(columnMapping).length > 0) {
+      // Use provided mapping
+      effectiveMapping = columnMapping;
+      console.log('Using provided column mapping:', effectiveMapping);
+    } else {
+      // Create automatic flexible mapping based on headers
+      effectiveMapping = createFlexibleColumnMapping(headers);
+      console.log('Created automatic flexible column mapping:', effectiveMapping);
+    }
     
     const result: ImportResult = {
       success: true,
@@ -254,20 +302,10 @@ serve(async (req) => {
       const row = dataRows[i];
       
       try {
-        let productData: any = {};
+        // Map row data using flexible mapping
+        const productData = mapRowData(headers, row, effectiveMapping);
         
-        if (columnMapping) {
-          // Use column mapping to map user columns to system fields
-          productData = mapRowData(headers, row, columnMapping);
-        } else {
-          // Fallback: legacy mode - assume headers match system field names
-          const lowerHeaders = headers.map(h => h.toLowerCase());
-          lowerHeaders.forEach((header, index) => {
-            if (row[index] !== undefined) {
-              productData[header] = row[index];
-            }
-          });
-        }
+        console.log(`Processing row ${i + 2} with data:`, productData);
 
         // Validate the product data
         const validation = validateProductData(productData);
@@ -278,28 +316,34 @@ serve(async (req) => {
           continue;
         }
 
-        // Handle category - find or create
+        // Handle category intelligently - find or create by name
         let categoryId = null;
         if (productData.category_name) {
+          console.log(`Processing category: "${productData.category_name}"`);
           categoryId = await findOrCreateCategory(supabaseClient, productData.category_name, organizationId);
-        }
-
-        // Process image URLs
-        let imageUrls: string[] = [];
-        if (productData.image_urls) {
-          imageUrls = processImageUrls(productData.image_urls);
-        }
-
-        // Process stock
-        let stock = 0;
-        if (productData.stock) {
-          const stockValue = parseInt(productData.stock);
-          if (!isNaN(stockValue)) {
-            stock = Math.max(0, stockValue); // Ensure non-negative
+          if (categoryId) {
+            console.log(`Category processed successfully. ID: ${categoryId}`);
           }
         }
 
-        // Prepare the product for insertion
+        // Process image URLs intelligently
+        let imageUrls: string[] = [];
+        if (productData.image_urls) {
+          imageUrls = processImageUrls(productData.image_urls);
+          console.log(`Processed ${imageUrls.length} image URLs`);
+        }
+
+        // Process stock with validation
+        let stock = 0;
+        if (productData.stock) {
+          const stockValue = parseInt(productData.stock.toString());
+          if (!isNaN(stockValue)) {
+            stock = Math.max(0, stockValue); // Ensure non-negative
+            console.log(`Processed stock: ${stock}`);
+          }
+        }
+
+        // Prepare the product for insertion with all processed data
         const product: ProductRow = {
           name: productData.name.trim(),
           sku: productData.sku?.trim() || null,
@@ -313,6 +357,8 @@ serve(async (req) => {
           image_urls: imageUrls,
           stock: stock,
         };
+
+        console.log(`Inserting product:`, { ...product, image_urls: `${imageUrls.length} URLs` });
 
         // Insert product into database
         const { error } = await supabaseClient
