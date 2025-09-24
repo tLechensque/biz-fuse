@@ -343,14 +343,22 @@ serve(async (req) => {
           }
         }
 
+        // Helper function to clean and parse price values
+        const cleanPrice = (value: any): number => {
+          if (!value) return 0;
+          const cleanedValue = String(value).replace(/,/g, '').trim();
+          const parsed = parseFloat(cleanedValue);
+          return isNaN(parsed) ? 0 : parsed;
+        };
+
         // Prepare the product for insertion with all processed data
         const product: ProductRow = {
           name: productData.name.trim(),
           sku: productData.sku?.trim() || null,
           simple_description: productData.simple_description.trim(),
           full_description: productData.full_description.trim(),
-          cost_price: parseFloat(productData.cost_price),
-          sell_price: parseFloat(productData.sell_price),
+          cost_price: cleanPrice(productData.cost_price),
+          sell_price: cleanPrice(productData.sell_price),
           brand: productData.brand?.trim() || null,
           unit: productData.unit?.trim() || 'pç',
           category_id: categoryId,
