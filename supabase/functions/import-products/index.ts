@@ -209,17 +209,31 @@ function processImageUrls(imageData: string): string[] {
 }
 
 async function getUserOrganizationId(supabase: any): Promise<string | null> {
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('organization_id')
-    .maybeSingle();
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
     
-  if (error) {
-    console.error('Error fetching user profile:', error);
+    if (!user) {
+      console.error('No authenticated user found');
+      return null;
+    }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+    
+    return profile?.organization_id || null;
+  } catch (err) {
+    console.error('Error in getUserOrganizationId:', err);
     return null;
   }
-  
-  return profile?.organization_id || null;
 }
 
 serve(async (req) => {
@@ -231,21 +245,21 @@ serve(async (req) => {
   try {
     console.log('Starting product import...');
     
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    );
+    // DEBUG: Skip organization ID check for now to focus on file reading
+    // const supabaseClient = createClient(
+    //   Deno.env.get('SUPABASE_URL') ?? '',
+    //   Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    //   {
+    //     global: {
+    //       headers: { Authorization: req.headers.get('Authorization')! },
+    //     },
+    //   }
+    // );
 
-    // Get user's organization ID
-    const organizationId = await getUserOrganizationId(supabaseClient);
-    if (!organizationId) {
-      throw new Error('Não foi possível identificar a organização do usuário');
-    }
+    // const organizationId = await getUserOrganizationId(supabaseClient);
+    // if (!organizationId) {
+    //   throw new Error('Não foi possível identificar a organização do usuário');
+    // }
     
     const { fileData, fileType, fileName, selectedSheet, columnMapping } = await req.json();
     
@@ -257,9 +271,10 @@ serve(async (req) => {
     console.log('Selected sheet:', selectedSheet || 'Default/First sheet');
     console.log('Column mapping provided:', columnMapping ? 'Yes' : 'No');
     
-    // Add specific try-catch around file reading
+    // DEBUG: Add specific try-catch around file reading
     let rows: string[][];
     try {
+      console.log('Starting file parsing...');
       if (fileType === 'csv') {
         rows = parseCSV(fileData);
       } else if (fileType === 'excel') {
@@ -267,31 +282,53 @@ serve(async (req) => {
       } else {
         throw new Error('Tipo de arquivo não suportado');
       }
-      console.log('File parsing successful!');
+      console.log('File parsing successful! Got', rows.length, 'rows');
     } catch (e) {
       console.error('Error during file parsing:', e);
       throw new Error(`Falha ao ler o ficheiro. O formato pode ser inválido ou corrompido. Detalhes: ${e.message}`);
     }
     
-    // Add specific try-catch around data conversion
+    // DEBUG: Add specific try-catch around data conversion
     let headers: string[];
-    let dataRows: string[][];
+    let jsonData: string[][];
     try {
+      console.log('Starting data conversion...');
       if (rows.length === 0) {
         throw new Error('Arquivo está vazio');
       }
 
       // Get headers from first row (keep original case for mapping)
       headers = rows[0].map(h => h.toString().trim());
-      dataRows = rows.slice(1);
+      jsonData = rows.slice(1);
       
-      console.log(`Found ${dataRows.length} product rows to import`);
+      console.log(`Data conversion successful! Found ${jsonData.length} product rows to import`);
       console.log('Headers found:', headers);
     } catch (e) {
       console.error('Error during data conversion:', e);
       throw new Error(`Falha ao converter a planilha para JSON. Verifique se a primeira aba contém dados tabulares simples. Detalhes: ${e.message}`);
     }
 
+    // DEBUG: Return sample data for debugging (comment out all database operations)
+    console.log('File reading and conversion successful! Returning sample data...');
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: 'Leitura e conversão da planilha bem-sucedidas!', 
+      file_info: {
+        file_name: fileName,
+        file_type: fileType,
+        selected_sheet: selectedSheet,
+        total_rows: jsonData.length,
+        headers: headers
+      },
+      data_sample: jsonData.slice(0, 5) 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
+
+    // ===== ALL DATABASE OPERATIONS COMMENTED OUT FOR DEBUGGING =====
+    /*
     // Create flexible column mapping if none provided
     let effectiveMapping: ColumnMapping;
     
@@ -313,8 +350,8 @@ serve(async (req) => {
     };
 
     // Process each row
-    for (let i = 0; i < dataRows.length; i++) {
-      const row = dataRows[i];
+    for (let i = 0; i < jsonData.length; i++) {
+      const row = jsonData[i];
       
       try {
         // Map row data using flexible mapping
@@ -418,6 +455,7 @@ serve(async (req) => {
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+    */
 
   } catch (error) {
     console.error('Error in import-products function:', error);
