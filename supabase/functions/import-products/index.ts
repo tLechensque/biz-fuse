@@ -45,8 +45,8 @@ function parseCSV(csvText: string): string[][] {
   return result;
 }
 
-// Excel parser function
-function parseExcel(base64Data: string): string[][] {
+// Excel parser function with sheet selection
+function parseExcel(base64Data: string, selectedSheet?: string): string[][] {
   try {
     // Decode base64 to binary
     const binaryString = atob(base64Data);
@@ -57,8 +57,13 @@ function parseExcel(base64Data: string): string[][] {
     
     // Parse Excel file
     const workbook = XLSX.read(bytes, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
+    
+    // Use selected sheet or first sheet if not specified
+    const sheetName = selectedSheet && workbook.SheetNames.includes(selectedSheet) 
+      ? selectedSheet 
+      : workbook.SheetNames[0];
+    
+    const worksheet = workbook.Sheets[sheetName];
     
     // Convert to array of arrays
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
@@ -158,20 +163,21 @@ serve(async (req) => {
       throw new Error('Não foi possível identificar a organização do usuário');
     }
 
-    const { fileData, fileType, fileName, columnMapping } = await req.json();
+    const { fileData, fileType, fileName, selectedSheet, columnMapping } = await req.json();
     
     if (!fileData) {
       throw new Error('Dados do arquivo não fornecidos');
     }
 
     console.log(`Parsing ${fileType} data from file: ${fileName}...`);
+    console.log('Selected sheet:', selectedSheet || 'Default/First sheet');
     console.log('Column mapping provided:', columnMapping ? 'Yes' : 'No');
     
     let rows: string[][];
     if (fileType === 'csv') {
       rows = parseCSV(fileData);
     } else if (fileType === 'excel') {
-      rows = parseExcel(fileData);
+      rows = parseExcel(fileData, selectedSheet);
     } else {
       throw new Error('Tipo de arquivo não suportado');
     }

@@ -18,6 +18,11 @@ interface ColumnMapping {
   [userColumn: string]: string;
 }
 
+interface SheetInfo {
+  name: string;
+  headers: string[];
+}
+
 const SYSTEM_FIELDS = [
   { value: 'name', label: 'Nome do Produto' },
   { value: 'sku', label: 'SKU/Código' },
@@ -34,7 +39,9 @@ const SYSTEM_FIELDS = [
 export const ImportProductsModal = ({ open, onClose, onSuccess }: ImportProductsModalProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [step, setStep] = useState<'upload' | 'mapping'>('upload');
+  const [step, setStep] = useState<'upload' | 'sheet-selection' | 'mapping'>('upload');
+  const [sheets, setSheets] = useState<SheetInfo[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>('');
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
   const { toast } = useToast();
@@ -133,29 +140,42 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     return mapping;
   };
 
-  const readFileHeaders = async (file: File): Promise<string[]> => {
+  const preProcessFile = async (file: File): Promise<SheetInfo[]> => {
     try {
+      let fileData: string;
+      let fileType: string;
+      
       if (file.type === 'text/csv') {
-        const text = await file.text();
-        const lines = text.split('\n');
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        return headers.filter(h => h.length > 0);
+        fileData = await file.text();
+        fileType = 'csv';
       } else {
-        // Para arquivos Excel
+        // For Excel files, convert to base64
         const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        if (data.length > 0) {
-          return (data[0] as string[]).filter(h => h && h.toString().trim().length > 0);
-        }
-        return [];
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        fileData = base64;
+        fileType = 'excel';
       }
+      
+      const { data, error } = await supabase.functions.invoke('pre-process-sheet', {
+        body: { 
+          fileData,
+          fileType,
+          fileName: file.name
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao processar arquivo');
+      }
+
+      return data.sheets;
     } catch (error) {
-      console.error('Erro ao ler cabeçalhos:', error);
-      throw new Error('Erro ao ler cabeçalhos do arquivo');
+      console.error('Erro ao pré-processar arquivo:', error);
+      throw new Error('Erro ao processar arquivo');
     }
   };
 
@@ -163,16 +183,35 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     if (!file) return;
 
     try {
-      const headers = await readFileHeaders(file);
-      setFileHeaders(headers);
-      setColumnMapping(autoMapColumns(headers));
-      setStep('mapping');
+      const sheetsData = await preProcessFile(file);
+      setSheets(sheetsData);
+      
+      // If only one sheet, auto-select it and go to mapping
+      if (sheetsData.length === 1) {
+        setSelectedSheet(sheetsData[0].name);
+        setFileHeaders(sheetsData[0].headers);
+        setColumnMapping(autoMapColumns(sheetsData[0].headers));
+        setStep('mapping');
+      } else {
+        // Multiple sheets, let user choose
+        setStep('sheet-selection');
+      }
     } catch (error: any) {
       toast({
         title: 'Erro ao processar arquivo',
-        description: error.message || 'Erro ao ler cabeçalhos do arquivo.',
+        description: error.message || 'Erro ao processar arquivo.',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleSheetSelection = (sheetName: string) => {
+    setSelectedSheet(sheetName);
+    const sheet = sheets.find(s => s.name === sheetName);
+    if (sheet) {
+      setFileHeaders(sheet.headers);
+      setColumnMapping(autoMapColumns(sheet.headers));
+      setStep('mapping');
     }
   };
 
@@ -216,6 +255,7 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
           fileData,
           fileType,
           fileName: file.name,
+          selectedSheet: selectedSheet,
           columnMapping: step === 'mapping' ? columnMapping : undefined
         },
       });
@@ -246,6 +286,8 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
   const resetForm = () => {
     setFile(null);
     setStep('upload');
+    setSheets([]);
+    setSelectedSheet('');
     setFileHeaders([]);
     setColumnMapping({});
     onClose();
@@ -258,7 +300,9 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            {step === 'upload' ? 'Importar Produtos' : 'Mapear Colunas'}
+            {step === 'upload' && 'Importar Produtos'}
+            {step === 'sheet-selection' && 'Selecionar Aba'}
+            {step === 'mapping' && 'Mapear Colunas'}
           </DialogTitle>
         </DialogHeader>
 
@@ -320,17 +364,60 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
                 className="w-full"
               >
                 <ArrowRight className="h-4 w-4 mr-2" />
-                Próximo: Mapear Colunas
+                Próximo: Analisar Planilha
               </Button>
               <Button variant="outline" onClick={resetForm}>
                 Cancelar
               </Button>
             </div>
           </div>
+        ) : step === 'sheet-selection' ? (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Selecionar aba para importação</h4>
+              <p className="text-sm text-muted-foreground">
+                Seu arquivo possui múltiplas abas. Selecione a aba que contém os dados dos produtos que você deseja importar.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {sheets.map((sheet, index) => (
+                <div 
+                  key={index} 
+                  className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors"
+                  onClick={() => handleSheetSelection(sheet.name)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <h5 className="font-medium">{sheet.name}</h5>
+                      <p className="text-sm text-muted-foreground">
+                        {sheet.headers.length} colunas encontradas
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    <strong>Colunas:</strong> {sheet.headers.slice(0, 5).join(', ')}{sheet.headers.length > 5 ? '...' : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => setStep('upload')}
+                className="flex-1"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Voltar
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-6">
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">Mapear colunas da sua planilha</h4>
+              <h4 className="text-sm font-medium">Mapear colunas da aba "{selectedSheet}"</h4>
               <p className="text-sm text-muted-foreground">
                 Associe cada coluna do seu arquivo aos campos do sistema. Deixe em "Ignorar" se não quiser importar uma coluna.
               </p>
@@ -366,7 +453,7 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
             <div className="flex gap-2">
               <Button 
                 variant="outline"
-                onClick={() => setStep('upload')}
+                onClick={() => sheets.length > 1 ? setStep('sheet-selection') : setStep('upload')}
                 className="flex-1"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
