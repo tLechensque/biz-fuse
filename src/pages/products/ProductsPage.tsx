@@ -25,6 +25,7 @@ export interface Product {
   video_url?: string;
   image_urls?: string[];
   category_id?: string;
+  stock?: number;
   organization_id: string;
   created_at: string;
   updated_at: string;
@@ -266,6 +267,10 @@ const ProductsPage = () => {
                   <span className={`font-medium ${(((product.sell_price - product.cost_price) / product.sell_price) * 100) < 35 ? 'text-destructive' : 'text-green-600'}`}>
                     {(((product.sell_price - product.cost_price) / product.sell_price) * 100).toFixed(1)}%
                   </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Estoque:</span>
+                  <span className="font-medium">{product.stock || 0} un</span>
                 </div>
               </div>
             </CardContent>

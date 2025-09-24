@@ -18,6 +18,8 @@ interface ProductRow {
   brand?: string;
   unit: string;
   category_id?: string;
+  image_urls?: string[];
+  stock?: number;
 }
 
 interface ImportResult {
@@ -124,11 +126,58 @@ function validateProductData(row: any): { isValid: boolean; errors: string[] } {
   };
 }
 
+async function findOrCreateCategory(supabase: any, categoryName: string, organizationId: string): Promise<string | null> {
+  if (!categoryName || categoryName.trim() === '') return null;
+  
+  const trimmedName = categoryName.trim();
+  
+  // First, try to find existing category
+  const { data: existingCategory } = await supabase
+    .from('categories')
+    .select('id')
+    .eq('name', trimmedName)
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+  
+  if (existingCategory) {
+    return existingCategory.id;
+  }
+  
+  // If not found, create new category
+  const { data: newCategory, error } = await supabase
+    .from('categories')
+    .insert({
+      name: trimmedName,
+      organization_id: organizationId
+    })
+    .select('id')
+    .single();
+  
+  if (error) {
+    console.error('Error creating category:', error);
+    return null;
+  }
+  
+  return newCategory?.id || null;
+}
+
+function processImageUrls(imageData: string): string[] {
+  if (!imageData || imageData.trim() === '') return [];
+  
+  // Split by common separators and filter valid URLs
+  const urls = imageData
+    .split(/[,;\n\r\t]+/)
+    .map(url => url.trim())
+    .filter(url => url.length > 0);
+  
+  return urls;
+}
+
 async function getUserOrganizationId(supabase: any): Promise<string | null> {
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('organization_id')
-    .single();
+    .maybeSingle();
     
   if (error) {
     console.error('Error fetching user profile:', error);
@@ -229,6 +278,27 @@ serve(async (req) => {
           continue;
         }
 
+        // Handle category - find or create
+        let categoryId = null;
+        if (productData.category_name) {
+          categoryId = await findOrCreateCategory(supabaseClient, productData.category_name, organizationId);
+        }
+
+        // Process image URLs
+        let imageUrls: string[] = [];
+        if (productData.image_urls) {
+          imageUrls = processImageUrls(productData.image_urls);
+        }
+
+        // Process stock
+        let stock = 0;
+        if (productData.stock) {
+          const stockValue = parseInt(productData.stock);
+          if (!isNaN(stockValue)) {
+            stock = Math.max(0, stockValue); // Ensure non-negative
+          }
+        }
+
         // Prepare the product for insertion
         const product: ProductRow = {
           name: productData.name.trim(),
@@ -239,7 +309,9 @@ serve(async (req) => {
           sell_price: parseFloat(productData.sell_price),
           brand: productData.brand?.trim() || null,
           unit: productData.unit?.trim() || 'pç',
-          category_id: productData.category_id?.trim() || null,
+          category_id: categoryId,
+          image_urls: imageUrls,
+          stock: stock,
         };
 
         // Insert product into database

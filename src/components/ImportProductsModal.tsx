@@ -32,7 +32,9 @@ const SYSTEM_FIELDS = [
   { value: 'sell_price', label: 'Preço de Venda' },
   { value: 'brand', label: 'Marca' },
   { value: 'unit', label: 'Unidade' },
-  { value: 'category_id', label: 'ID da Categoria' },
+  { value: 'category_name', label: 'Categoria' },
+  { value: 'image_urls', label: 'URLs de Imagens' },
+  { value: 'stock', label: 'Estoque' },
   { value: 'ignore', label: 'Ignorar esta coluna' }
 ];
 
@@ -131,6 +133,12 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
         mapping[header] = 'brand';
       } else if (lowerHeader.includes('unidade') || lowerHeader.includes('unit')) {
         mapping[header] = 'unit';
+      } else if (lowerHeader.includes('categoria') || lowerHeader.includes('category')) {
+        mapping[header] = 'category_name';
+      } else if (lowerHeader.includes('imagem') || lowerHeader.includes('image')) {
+        mapping[header] = 'image_urls';
+      } else if (lowerHeader.includes('estoque') || lowerHeader.includes('stock') || lowerHeader.includes('quantidade')) {
+        mapping[header] = 'stock';
       } else {
         // Se não encontrou correspondência, deixa como ignorar
         mapping[header] = 'ignore';
