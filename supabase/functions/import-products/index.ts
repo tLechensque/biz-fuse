@@ -231,22 +231,6 @@ serve(async (req) => {
   try {
     console.log('Starting product import...');
     
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    );
-
-    // Get user's organization ID
-    const organizationId = await getUserOrganizationId(supabaseClient);
-    if (!organizationId) {
-      throw new Error('Não foi possível identificar a organização do usuário');
-    }
-
     const { fileData, fileType, fileName, selectedSheet, columnMapping } = await req.json();
     
     if (!fileData) {
@@ -257,25 +241,40 @@ serve(async (req) => {
     console.log('Selected sheet:', selectedSheet || 'Default/First sheet');
     console.log('Column mapping provided:', columnMapping ? 'Yes' : 'No');
     
+    // DEBUG: Add specific try-catch around file reading
     let rows: string[][];
-    if (fileType === 'csv') {
-      rows = parseCSV(fileData);
-    } else if (fileType === 'excel') {
-      rows = parseExcel(fileData, selectedSheet);
-    } else {
-      throw new Error('Tipo de arquivo não suportado');
+    try {
+      if (fileType === 'csv') {
+        rows = parseCSV(fileData);
+      } else if (fileType === 'excel') {
+        rows = parseExcel(fileData, selectedSheet);
+      } else {
+        throw new Error('Tipo de arquivo não suportado');
+      }
+      console.log('File parsing successful!');
+    } catch (e) {
+      console.error('Error during file parsing:', e);
+      throw new Error(`Falha ao ler o ficheiro. O formato pode ser inválido ou corrompido. Detalhes: ${e.message}`);
     }
     
-    if (rows.length === 0) {
-      throw new Error('Arquivo está vazio');
+    // DEBUG: Add specific try-catch around data conversion
+    let headers: string[];
+    let dataRows: string[][];
+    try {
+      if (rows.length === 0) {
+        throw new Error('Arquivo está vazio');
+      }
+
+      // Get headers from first row (keep original case for mapping)
+      headers = rows[0].map(h => h.toString().trim());
+      dataRows = rows.slice(1);
+      
+      console.log(`Found ${dataRows.length} product rows to import`);
+      console.log('Headers found:', headers);
+    } catch (e) {
+      console.error('Error during data conversion:', e);
+      throw new Error(`Falha ao converter a planilha para JSON. Verifique se a primeira aba contém dados tabulares simples. Detalhes: ${e.message}`);
     }
-
-    // Get headers from first row (keep original case for mapping)
-    const headers = rows[0].map(h => h.toString().trim());
-    const dataRows = rows.slice(1);
-
-    console.log(`Found ${dataRows.length} product rows to import`);
-    console.log('Headers found:', headers);
 
     // Create flexible column mapping if none provided
     let effectiveMapping: ColumnMapping;
@@ -289,59 +288,19 @@ serve(async (req) => {
       effectiveMapping = createFlexibleColumnMapping(headers);
       console.log('Created automatic flexible column mapping:', effectiveMapping);
     }
-    
-    const result: ImportResult = {
-      success: true,
-      imported: 0,
-      failed: 0,
-      errors: []
-    };
 
-    // Process each row
-    for (let i = 0; i < dataRows.length; i++) {
+    // DEBUG: Process sample rows for debugging
+    const sampleData: any[] = [];
+    const maxSamples = Math.min(5, dataRows.length);
+    
+    for (let i = 0; i < maxSamples; i++) {
       const row = dataRows[i];
       
       try {
         // Map row data using flexible mapping
         const productData = mapRowData(headers, row, effectiveMapping);
         
-        console.log(`Processing row ${i + 2} with data:`, productData);
-
-        // Validate the product data
-        const validation = validateProductData(productData);
-        
-        if (!validation.isValid) {
-          result.failed++;
-          result.errors.push(`Linha ${i + 2}: ${validation.errors.join(', ')}`);
-          continue;
-        }
-
-        // Handle category intelligently - find or create by name
-        let categoryId = null;
-        if (productData.category_name) {
-          console.log(`Processing category: "${productData.category_name}"`);
-          categoryId = await findOrCreateCategory(supabaseClient, productData.category_name, organizationId);
-          if (categoryId) {
-            console.log(`Category processed successfully. ID: ${categoryId}`);
-          }
-        }
-
-        // Process image URLs intelligently
-        let imageUrls: string[] = [];
-        if (productData.image_urls) {
-          imageUrls = processImageUrls(productData.image_urls);
-          console.log(`Processed ${imageUrls.length} image URLs`);
-        }
-
-        // Process stock with validation
-        let stock = 0;
-        if (productData.stock) {
-          const stockValue = parseInt(productData.stock.toString());
-          if (!isNaN(stockValue)) {
-            stock = Math.max(0, stockValue); // Ensure non-negative
-            console.log(`Processed stock: ${stock}`);
-          }
-        }
+        console.log(`Processing sample row ${i + 2} with data:`, productData);
 
         // Helper function to clean and parse price values
         const cleanPrice = (value: any): number => {
@@ -351,51 +310,49 @@ serve(async (req) => {
           return isNaN(parsed) ? 0 : parsed;
         };
 
-        // Prepare the product for insertion with all processed data
-        const product: ProductRow = {
-          name: productData.name.trim(),
-          sku: productData.sku?.trim() || null,
-          simple_description: productData.simple_description.trim(),
-          full_description: productData.full_description.trim(),
-          cost_price: cleanPrice(productData.cost_price),
-          sell_price: cleanPrice(productData.sell_price),
-          brand: productData.brand?.trim() || null,
-          unit: productData.unit?.trim() || 'pç',
-          category_id: categoryId,
-          image_urls: imageUrls,
-          stock: stock,
+        // Process sample data (without database operations)
+        const processedSample = {
+          row_number: i + 2,
+          original_data: productData,
+          processed_prices: {
+            cost_price: cleanPrice(productData.cost_price),
+            sell_price: cleanPrice(productData.sell_price),
+          },
+          category_name: productData.category_name || null,
+          stock_value: productData.stock ? parseInt(productData.stock.toString()) : 0,
+          image_urls_count: productData.image_urls ? processImageUrls(productData.image_urls).length : 0
         };
 
-        console.log(`Inserting product:`, { ...product, image_urls: `${imageUrls.length} URLs` });
-
-        // Insert product into database
-        const { error } = await supabaseClient
-          .from('products')
-          .insert({
-            ...product,
-            organization_id: organizationId,
-          });
-
-        if (error) {
-          console.error(`Error inserting product ${product.name}:`, error);
-          result.failed++;
-          result.errors.push(`Linha ${i + 2}: ${error.message}`);
-        } else {
-          result.imported++;
-          console.log(`Successfully imported product: ${product.name}`);
-        }
+        sampleData.push(processedSample);
         
       } catch (error) {
-        console.error(`Error processing row ${i + 2}:`, error);
-        result.failed++;
-        result.errors.push(`Linha ${i + 2}: ${error.message}`);
+        console.error(`Error processing sample row ${i + 2}:`, error);
+        sampleData.push({
+          row_number: i + 2,
+          error: error.message,
+          raw_row: row
+        });
       }
     }
 
-    console.log(`Import completed. Success: ${result.imported}, Failed: ${result.failed}`);
-
-    return new Response(JSON.stringify(result), {
+    // DEBUG: Return success with sample data instead of processing all rows
+    console.log('File reading and conversion successful! Returning sample data...');
+    
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: 'Leitura e conversão da planilha bem-sucedidas!', 
+      file_info: {
+        file_name: fileName,
+        file_type: fileType,
+        selected_sheet: selectedSheet,
+        total_rows: dataRows.length,
+        headers: headers,
+        column_mapping: effectiveMapping
+      },
+      data_sample: sampleData
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     });
 
   } catch (error) {
