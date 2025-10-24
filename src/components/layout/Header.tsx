@@ -14,10 +14,13 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ProfileEditDialog } from "@/components/ProfileEditDialog";
+import { useState } from "react";
 
 export function Header() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -77,9 +80,9 @@ export function Header() {
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setProfileDialogOpen(true)}>
               <User className="w-4 h-4 mr-2" />
-              Perfil
+              Editar Perfil
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
@@ -89,6 +92,11 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <ProfileEditDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+      />
     </header>
   );
 }

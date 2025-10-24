@@ -251,36 +251,111 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           email: string
           id: string
           name: string
           organization_id: string
+          phone: string | null
           role: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           email: string
           id?: string
           name: string
           organization_id: string
+          phone?: string | null
           role?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           email?: string
           id?: string
           name?: string
           organization_id?: string
+          phone?: string | null
           role?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: []
+      }
+      proposals: {
+        Row: {
+          client_id: string | null
+          client_name: string
+          created_at: string
+          created_by_name: string | null
+          description: string | null
+          id: string
+          items: Json | null
+          margin: number | null
+          organization_id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          value: number
+          version: number
+        }
+        Insert: {
+          client_id?: string | null
+          client_name: string
+          created_at?: string
+          created_by_name?: string | null
+          description?: string | null
+          id?: string
+          items?: Json | null
+          margin?: number | null
+          organization_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          value?: number
+          version?: number
+        }
+        Update: {
+          client_id?: string | null
+          client_name?: string
+          created_at?: string
+          created_by_name?: string | null
+          description?: string | null
+          id?: string
+          items?: Json | null
+          margin?: number | null
+          organization_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          value?: number
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_permissions: {
         Row: {

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Shield, UserPlus, Trash2, Loader2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { InviteUserDialog } from '@/components/InviteUserDialog';
 
 interface UserWithRole {
   id: string;
@@ -37,6 +38,7 @@ export default function UsersManagement() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   useEffect(() => {
     checkAdminStatus();
@@ -109,18 +111,34 @@ export default function UsersManagement() {
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
-      // Remove existing role
-      await supabase
-        .from('user_roles' as any)
-        .delete()
-        .eq('user_id', userId);
-
-      // Add new role
+      // Use upsert to handle existing roles
       const { error } = await supabase
         .from('user_roles' as any)
-        .insert({ user_id: userId, role: newRole, created_by: user?.id });
+        .upsert(
+          { 
+            user_id: userId, 
+            role: newRole, 
+            created_by: user?.id 
+          },
+          { 
+            onConflict: 'user_id,role',
+            ignoreDuplicates: false 
+          }
+        );
 
-      if (error) throw error;
+      // If upsert fails, try delete and insert
+      if (error) {
+        await supabase
+          .from('user_roles' as any)
+          .delete()
+          .eq('user_id', userId);
+
+        const { error: insertError } = await supabase
+          .from('user_roles' as any)
+          .insert({ user_id: userId, role: newRole, created_by: user?.id });
+
+        if (insertError) throw insertError;
+      }
 
       toast({
         title: 'Role atualizada',
@@ -197,6 +215,10 @@ export default function UsersManagement() {
               Gerencie usuários e suas permissões no sistema
             </p>
           </div>
+          <Button onClick={() => setInviteDialogOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Convidar Usuário
+          </Button>
         </div>
 
         <Card>
@@ -283,6 +305,12 @@ export default function UsersManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <InviteUserDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        onSuccess={loadUsers}
+      />
     </Layout>
   );
 }
