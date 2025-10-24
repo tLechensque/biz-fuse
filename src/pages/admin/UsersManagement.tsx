@@ -74,11 +74,9 @@ export default function UsersManagement() {
     try {
       setLoading(true);
 
-      // Get all users from auth.users via admin API would require service role
-      // Instead, we'll get profiles with their roles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, created_at');
+        .select('user_id, email, created_at');
 
       if (profilesError) throw profilesError;
 
@@ -89,10 +87,12 @@ export default function UsersManagement() {
 
       if (rolesError) throw rolesError;
 
-      const usersWithRoles = (profiles || []).map(profile => {
-        const userRole = roles?.find(r => (r as any).user_id === profile.id);
+      const usersWithRoles: UserWithRole[] = (profiles || []).map((profile: any) => {
+        const userRole = roles?.find(r => (r as any).user_id === profile.user_id);
         return {
-          ...profile,
+          id: profile.user_id,
+          email: profile.email,
+          created_at: profile.created_at,
           role: userRole ? (userRole as any).role : null,
         };
       });
@@ -111,34 +111,17 @@ export default function UsersManagement() {
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
-      // Use upsert to handle existing roles
+      // Ensure a single role per user: delete all and insert one
+      await supabase
+        .from('user_roles' as any)
+        .delete()
+        .eq('user_id', userId);
+
       const { error } = await supabase
         .from('user_roles' as any)
-        .upsert(
-          { 
-            user_id: userId, 
-            role: newRole, 
-            created_by: user?.id 
-          },
-          { 
-            onConflict: 'user_id,role',
-            ignoreDuplicates: false 
-          }
-        );
+        .insert({ user_id: userId, role: newRole, created_by: user?.id });
 
-      // If upsert fails, try delete and insert
-      if (error) {
-        await supabase
-          .from('user_roles' as any)
-          .delete()
-          .eq('user_id', userId);
-
-        const { error: insertError } = await supabase
-          .from('user_roles' as any)
-          .insert({ user_id: userId, role: newRole, created_by: user?.id });
-
-        if (insertError) throw insertError;
-      }
+      if (error) throw error;
 
       toast({
         title: 'Role atualizada',
