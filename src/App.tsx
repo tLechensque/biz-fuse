@@ -9,6 +9,8 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ProductsPage from "./pages/products/ProductsPage";
 import ClientsPage from "./pages/clients/ClientsPage";
+import UsersManagement from "./pages/admin/UsersManagement";
+import PermissionsManagement from "./pages/admin/PermissionsManagement";
 import { Layout } from "./components/layout/Layout";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -114,6 +116,16 @@ const App = () => (
                   <p className="text-muted-foreground">Configurações da organização em desenvolvimento...</p>
                 </div>
               </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/users" element={
+            <ProtectedRoute>
+              <UsersManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/permissions" element={
+            <ProtectedRoute>
+              <PermissionsManagement />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

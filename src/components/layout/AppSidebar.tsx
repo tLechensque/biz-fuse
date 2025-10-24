@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   BarChart3,
@@ -11,7 +11,10 @@ import {
   Building2,
   CreditCard,
   PieChart,
+  Shield,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 import {
   Sidebar,
@@ -44,9 +47,37 @@ const managementItems = [
 
 export function AppSidebar() {
   const { state } = useSidebar();
+  const { user } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, [user]);
+
+  const checkAdminStatus = async () => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('user_roles' as any)
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'administrador')
+        .maybeSingle();
+      
+      if (!error && data) {
+        setIsAdmin(true);
+      }
+    } catch (e) {
+      console.error('Error checking admin status:', e);
+    }
+  };
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -132,6 +163,41 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Admin Section - Only visible for admins */}
+        {isAdmin && (
+          <SidebarGroup className="px-3">
+            <SidebarGroupLabel className="text-sidebar-foreground/60 uppercase text-xs font-semibold">
+              Administração
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/admin/users"
+                      className={`${getNavCls('/admin/users')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
+                    >
+                      <Users className="w-4 h-4" />
+                      {!isCollapsed && <span>Usuários</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink
+                      to="/admin/permissions"
+                      className={`${getNavCls('/admin/permissions')} flex items-center gap-3 px-3 py-2 rounded-lg transition-all`}
+                    >
+                      <Shield className="w-4 h-4" />
+                      {!isCollapsed && <span>Permissões</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
