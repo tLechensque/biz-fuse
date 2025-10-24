@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, Download, FileText, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface ImportProductsModalProps {
   open: boolean;
@@ -41,37 +42,52 @@ export const ImportProductsModal = ({ open, onClose, onSuccess }: ImportProducts
   const { toast } = useToast();
 
   const downloadTemplate = () => {
-    const csvContent = `name,sku,simple_description,full_description,cost_price,sell_price,brand,unit,category_name
-Produto Exemplo,SKU001,Descrição simples,Descrição completa do produto,50.00,100.00,Marca Exemplo,pç,Eletrônicos
-Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca,kg,Casa e Jardim`;
+    const wb = XLSX.utils.book_new();
+    const wsData = [
+      ['name', 'sku', 'simple_description', 'full_description', 'cost_price', 'sell_price', 'brand', 'unit', 'category_name', 'image_url', 'stock'],
+      ['Produto Exemplo', 'SKU001', 'Descrição simples', 'Descrição completa do produto', 50.00, 100.00, 'Marca Exemplo', 'pç', 'Eletrônicos', 'https://exemplo.com/imagem1.jpg', 10],
+      ['Produto 2', 'SKU002', 'Outra descrição', 'Descrição detalhada', 25.50, 60.00, 'Outra Marca', 'kg', 'Casa e Jardim', 'https://exemplo.com/imagem2.jpg', 5]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
     
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'modelo_importacao_produtos.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+    // Ajustar largura das colunas
+    ws['!cols'] = [
+      { wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 30 }, 
+      { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 8 }, 
+      { wch: 15 }, { wch: 40 }, { wch: 10 }
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Produtos');
+    XLSX.writeFile(wb, 'modelo_importacao_produtos.xlsx');
     
     toast({
       title: 'Modelo baixado',
-      description: 'Arquivo modelo_importacao_produtos.csv baixado com sucesso.',
+      description: 'Arquivo modelo_importacao_produtos.xlsx baixado com sucesso.',
     });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     
-    if (selectedFile && selectedFile.type === 'text/csv') {
-      setFile(selectedFile);
-    } else {
-      toast({
-        title: 'Arquivo inválido',
-        description: 'Por favor, selecione apenas arquivos .csv',
-        variant: 'destructive',
-      });
+    if (selectedFile) {
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+        'application/vnd.ms-excel', // .xls
+        'text/csv'
+      ];
+      
+      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
+      const validExtensions = ['xlsx', 'xls', 'csv'];
+      
+      if (validTypes.includes(selectedFile.type) || validExtensions.includes(fileExtension || '')) {
+        setFile(selectedFile);
+      } else {
+        toast({
+          title: 'Arquivo inválido',
+          description: 'Por favor, selecione apenas arquivos .xlsx, .xls ou .csv',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -116,20 +132,36 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
 
   const preProcessFile = async (file: File) => {
     try {
-      const fileData = await file.text();
-      const lines = fileData.split('\n').filter(line => line.trim());
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
       
-      if (lines.length < 1) {
-        throw new Error('O arquivo CSV está vazio ou não contém dados válidos');
-      }
+      if (fileExtension === 'csv') {
+        // Processar CSV
+        const fileData = await file.text();
+        const lines = fileData.split('\n').filter(line => line.trim());
+        
+        if (lines.length < 1) {
+          throw new Error('O arquivo está vazio ou não contém dados válidos');
+        }
 
-      // Processar cabeçalho
-      const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
-      
-      return headers;
+        const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
+        return headers;
+      } else {
+        // Processar Excel
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        
+        if (jsonData.length < 1) {
+          throw new Error('A planilha está vazia ou não contém dados válidos');
+        }
+
+        const headers = (jsonData[0] as any[]).map(h => String(h || '').trim());
+        return headers;
+      }
     } catch (error) {
-      console.error('Erro ao processar arquivo CSV:', error);
-      throw new Error('Erro ao processar arquivo CSV. Verifique se o formato está correto.');
+      console.error('Erro ao processar arquivo:', error);
+      throw new Error('Erro ao processar arquivo. Verifique se o formato está correto.');
     }
   };
 
@@ -170,11 +202,27 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
     setIsUploading(true);
 
     try {
-      const fileData = await file.text();
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      let fileData: string;
+      let fileType: string;
+      
+      if (fileExtension === 'csv') {
+        fileData = await file.text();
+        fileType = 'csv';
+      } else {
+        // Para Excel, converter para JSON
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false });
+        fileData = JSON.stringify(jsonData);
+        fileType = 'excel';
+      }
       
       const { data, error } = await supabase.functions.invoke('import-products', {
         body: { 
           fileData,
+          fileType,
           columnMapping: columnMapping
         },
       });
@@ -235,14 +283,14 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
                 className="w-full"
               >
                 <Download className="h-4 w-4 mr-2" />
-                Baixar Modelo CSV
+                Baixar Modelo Excel
               </Button>
             </div>
 
             <div className="space-y-2">
               <h4 className="text-sm font-medium">2. Selecionar sua planilha</h4>
               <p className="text-sm text-muted-foreground">
-                Selecione o arquivo CSV com seus produtos
+                Selecione o arquivo Excel ou CSV com seus produtos
               </p>
               <div className="flex items-center justify-center w-full">
                 <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-muted hover:bg-muted/80">
@@ -251,12 +299,12 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
                     <p className="mb-2 text-sm text-muted-foreground">
                       {file ? file.name : 'Clique para selecionar ou arraste o arquivo'}
                     </p>
-                    <p className="text-xs text-muted-foreground">Apenas arquivos .csv</p>
+                    <p className="text-xs text-muted-foreground">Arquivos .xlsx, .xls ou .csv</p>
                   </div>
                   <Input
                     type="file"
                     className="hidden"
-                    accept=".csv"
+                    accept=".xlsx,.xls,.csv"
                     onChange={handleFileChange}
                   />
                 </label>
@@ -280,9 +328,9 @@ Produto 2,SKU002,Outra descrição,Descrição detalhada,25.50,60.00,Outra Marca
         ) : (
           <div className="space-y-6">
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">Mapear colunas do arquivo CSV</h4>
+              <h4 className="text-sm font-medium">Mapear colunas da planilha</h4>
               <p className="text-sm text-muted-foreground">
-                Associe cada coluna do seu arquivo aos campos do sistema. Deixe em "Ignorar" se não quiser importar uma coluna.
+                Associe cada coluna do seu arquivo aos campos do sistema. Deixe em "Ignorar" se não quiser importar uma coluna. Para URLs de imagens, use vírgulas para separar múltiplas URLs.
               </p>
             </div>
 

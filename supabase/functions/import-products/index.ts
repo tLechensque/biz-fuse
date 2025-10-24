@@ -12,38 +12,41 @@ serve(async (req) => {
   }
 
   try {
-    const { fileData, columnMapping } = await req.json()
+    const { fileData, fileType, columnMapping } = await req.json()
 
     if (!fileData) {
       throw new Error('Nenhum conteúdo de ficheiro encontrado.')
     }
 
-    // --- Bloco 1: Ler o ficheiro CSV ---
-    let lines: string[];
+    // --- Bloco 1: Processar dados baseado no tipo de arquivo ---
+    let headers: string[];
+    let dataRows: any[][];
+    
     try {
-      lines = fileData.split('\n').filter((line: string) => line.trim());
-      if (lines.length < 2) {
-        throw new Error('O ficheiro deve conter pelo menos uma linha de cabeçalho e uma linha de dados.');
+      if (fileType === 'csv') {
+        // Processar CSV
+        const lines = fileData.split('\n').filter((line: string) => line.trim());
+        if (lines.length < 2) {
+          throw new Error('O ficheiro deve conter pelo menos uma linha de cabeçalho e uma linha de dados.');
+        }
+        
+        headers = lines[0].split(',').map((h: string) => h.trim().replace(/['"]/g, ''));
+        dataRows = lines.slice(1).map((line: string) => 
+          line.split(',').map((cell: string) => cell.trim().replace(/['"]/g, ''))
+        );
+      } else {
+        // Processar Excel (JSON)
+        const jsonData = JSON.parse(fileData);
+        if (jsonData.length < 2) {
+          throw new Error('A planilha deve conter pelo menos uma linha de cabeçalho e uma linha de dados.');
+        }
+        
+        headers = jsonData[0].map((h: any) => String(h || '').trim());
+        dataRows = jsonData.slice(1);
       }
     } catch (e) {
-      console.error('Erro ao processar linhas do CSV:', e);
-      return new Response(JSON.stringify({ error: `Falha ao processar o ficheiro CSV. Verifique se o formato está correto. Detalhe: ${e.message}` }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      });
-    }
-
-    // --- Bloco 2: Processar cabeçalho e dados ---
-    let headers: string[];
-    let dataRows: string[][];
-    try {
-      headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g, ''));
-      dataRows = lines.slice(1).map(line => 
-        line.split(',').map(cell => cell.trim().replace(/['"]/g, ''))
-      );
-    } catch (e) {
-      console.error('Erro ao processar cabeçalho e dados:', e);
-      return new Response(JSON.stringify({ error: `Falha ao processar dados do CSV. Verifique se as colunas estão separadas por vírgulas. Detalhe: ${e.message}` }), {
+      console.error('Erro ao processar arquivo:', e);
+      return new Response(JSON.stringify({ error: `Falha ao processar arquivo. Verifique se o formato está correto. Detalhe: ${e.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
@@ -110,10 +113,17 @@ serve(async (req) => {
 
           if (mappedField === 'cost_price' || mappedField === 'sell_price') {
             // Limpeza de preços
-            const cleanPrice = value.replace(/,/g, '');
+            const cleanPrice = String(value).replace(/,/g, '').replace(/[^\d.]/g, '');
             product[mappedField] = parseFloat(cleanPrice) || 0;
           } else if (mappedField === 'stock') {
-            product[mappedField] = parseInt(value) || 0;
+            product[mappedField] = parseInt(String(value)) || 0;
+          } else if (mappedField === 'image_urls' || mappedField === 'image_url') {
+            // Processar URLs de imagens (separadas por vírgula ou ponto e vírgula)
+            const urls = String(value).split(/[,;]/).map(url => url.trim()).filter(url => url);
+            if (urls.length > 0) {
+              product.image_urls = urls;
+              product.image_url = urls[0]; // Primeira imagem como principal
+            }
           } else if (mappedField === 'category_name') {
             // Gestão de categorias
             if (value && !categoriesCache[value]) {
