@@ -11,10 +11,9 @@ import ProductsPage from "./pages/products/ProductsPage";
 import ClientsPage from "./pages/clients/ClientsPage";
 import UsersManagement from "./pages/admin/UsersManagement";
 import PermissionsManagement from "./pages/admin/PermissionsManagement";
-import { Layout } from "./components/layout/Layout";
 import { AuthProvider } from "./components/auth/AuthProvider";
-import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { ProfileSetup } from "./components/ProfileSetup";
+import { ProtectedLayout } from "./components/layout/ProtectedLayout";
 
 // Create QueryClient instance outside component to prevent recreation
 const queryClient = new QueryClient({
@@ -37,99 +36,54 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<Index />} />
-              <Route path="/proposals" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Proposals />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/products" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <ProductsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/clients" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <ClientsPage />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-          <Route path="/kits" element={
-            <ProtectedRoute>
-              <Layout>
-                <div className="p-6">
-                  <h1 className="text-3xl font-bold mb-4">Kits</h1>
-                  <p className="text-muted-foreground">Módulo de kits em desenvolvimento...</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/briefing" element={
-            <ProtectedRoute>
-              <Layout>
-                <div className="p-6">
-                  <h1 className="text-3xl font-bold mb-4">Briefing</h1>
-                  <p className="text-muted-foreground">Módulo de briefing em desenvolvimento...</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/templates" element={
-            <ProtectedRoute>
-              <Layout>
-                <div className="p-6">
-                  <h1 className="text-3xl font-bold mb-4">Templates</h1>
-                  <p className="text-muted-foreground">Módulo de templates em desenvolvimento...</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/portfolio" element={
-            <ProtectedRoute>
-              <Layout>
-                <div className="p-6">
-                  <h1 className="text-3xl font-bold mb-4">Portfólio</h1>
-                  <p className="text-muted-foreground">Módulo de portfólio em desenvolvimento...</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/payment-methods" element={
-            <ProtectedRoute>
-              <Layout>
-                <div className="p-6">
-                  <h1 className="text-3xl font-bold mb-4">Métodos de Pagamento</h1>
-                  <p className="text-muted-foreground">Módulo de métodos de pagamento em desenvolvimento...</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/organization" element={
-            <ProtectedRoute>
-              <Layout>
-                <div className="p-6">
-                  <h1 className="text-3xl font-bold mb-4">Organização</h1>
-                  <p className="text-muted-foreground">Configurações da organização em desenvolvimento...</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/users" element={
-            <ProtectedRoute>
-              <UsersManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/permissions" element={
-            <ProtectedRoute>
-              <PermissionsManagement />
-            </ProtectedRoute>
-          } />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
+              
+              {/* Protected routes with Layout */}
+              <Route element={<ProtectedLayout />}>
+                <Route path="/proposals" element={<Proposals />} />
+                <Route path="/products" element={<ProductsPage />} />
+                <Route path="/clients" element={<ClientsPage />} />
+                <Route path="/kits" element={
+                  <div className="p-6">
+                    <h1 className="text-3xl font-bold mb-4">Kits</h1>
+                    <p className="text-muted-foreground">Módulo de kits em desenvolvimento...</p>
+                  </div>
+                } />
+                <Route path="/briefing" element={
+                  <div className="p-6">
+                    <h1 className="text-3xl font-bold mb-4">Briefing</h1>
+                    <p className="text-muted-foreground">Módulo de briefing em desenvolvimento...</p>
+                  </div>
+                } />
+                <Route path="/templates" element={
+                  <div className="p-6">
+                    <h1 className="text-3xl font-bold mb-4">Templates</h1>
+                    <p className="text-muted-foreground">Módulo de templates em desenvolvimento...</p>
+                  </div>
+                } />
+                <Route path="/portfolio" element={
+                  <div className="p-6">
+                    <h1 className="text-3xl font-bold mb-4">Portfólio</h1>
+                    <p className="text-muted-foreground">Módulo de portfólio em desenvolvimento...</p>
+                  </div>
+                } />
+                <Route path="/payment-methods" element={
+                  <div className="p-6">
+                    <h1 className="text-3xl font-bold mb-4">Métodos de Pagamento</h1>
+                    <p className="text-muted-foreground">Módulo de métodos de pagamento em desenvolvimento...</p>
+                  </div>
+                } />
+                <Route path="/organization" element={
+                  <div className="p-6">
+                    <h1 className="text-3xl font-bold mb-4">Organização</h1>
+                    <p className="text-muted-foreground">Configurações da organização em desenvolvimento...</p>
+                  </div>
+                } />
+                <Route path="/admin/users" element={<UsersManagement />} />
+                <Route path="/admin/permissions" element={<PermissionsManagement />} />
+              </Route>
+              
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>

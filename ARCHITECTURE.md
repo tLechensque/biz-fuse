@@ -361,8 +361,10 @@ Este documento descreve toda a arquitetura e funcionalidades implementadas no si
 - **Layout**: Container principal com sidebar e header
 
 ### 6.2 Autenticação
-- **AuthProvider**: Context provider para estado de autenticação
-- **ProtectedRoute**: HOC para proteger rotas autenticadas
+- **AuthProvider**: Context provider para estado de autenticação (type-safe com validação)
+- **ProtectedRoute**: HOC para proteger rotas autenticadas (com acessibilidade)
+- **ProtectedLayout**: Layout wrapper que combina ProtectedRoute + Layout
+- **ProfileSetup**: Setup inicial de perfil com prevenção de duplicação
 
 ### 6.3 Páginas
 - **Auth**: Login e registro
@@ -445,28 +447,104 @@ Este documento descreve toda a arquitetura e funcionalidades implementadas no si
 - Isolamento por organização (multi-tenancy)
 - Tokens JWT para autenticação
 - Service role apenas em Edge Functions
+- Context de autenticação com validação estrita
+- Tratamento de erros em sessões
 
 ### 9.2 Performance
 - Queries otimizadas com índices
 - Importação em lote de produtos
 - Cache de categorias durante importação
 - Lazy loading de componentes
+- React Query para cache e invalidação
 
 ### 9.3 Manutenibilidade
 - Componentes modulares e reutilizáveis
 - Tipagem TypeScript em todo código
 - Hooks customizados para lógica compartilhada
 - Separação clara de responsabilidades
+- Constantes centralizadas
+- Rotas organizadas hierarquicamente
 
 ### 9.4 UX
 - Feedback imediato com toasts
 - Loading states em operações assíncronas
 - Validação de formulários em tempo real
 - Templates para facilitar importação
+- Acessibilidade com ARIA labels e screen reader support
+
+### 9.5 Arquitetura
+- Layout protegido com rota pai compartilhada
+- Hook de autorização centralizado
+- Prevenção de múltiplas criações de perfil
+- Context de autenticação type-safe
+- Organização de rotas modular
 
 ---
 
-## 10. Próximos Passos Sugeridos
+## 10. Melhorias Arquiteturais Recentes
+
+### 10.1 Reorganização de Rotas
+- **Problema Anterior**: Duplicação de `<ProtectedRoute><Layout>...</Layout></ProtectedRoute>` em cada rota
+- **Solução Implementada**: 
+  - Criado `ProtectedLayout` que combina proteção + layout
+  - Rotas protegidas agora são filhas de uma rota pai
+  - Redução de código e facilitação de manutenção
+  - Preparação para middlewares futuros
+
+### 10.2 Context de Autenticação Seguro
+- **Problema Anterior**: Context inicializado com valores padrão, permitindo uso incorreto
+- **Solução Implementada**:
+  - Context tipado como `AuthContextType | undefined`
+  - Validação explícita no hook `useAuth`
+  - Tratamento de erros em `getSession()`
+  - Armazenamento completo de session (não apenas user)
+
+### 10.3 Acessibilidade no Loading
+- **Problema Anterior**: Spinner visual sem feedback para leitores de tela
+- **Solução Implementada**:
+  - Adicionado `aria-live="polite"` e `role="status"`
+  - Texto oculto com `sr-only` para leitores de tela
+  - Mensagem contextual "Carregando autenticação..."
+
+### 10.4 Prevenção de Recriação de Perfil
+- **Problema Anterior**: Múltiplas tentativas de criação durante loading
+- **Solução Implementada**:
+  - Verificação de `isCreatingProfile` antes de nova tentativa
+  - Estado local previne loops de criação
+  - Tratamento adequado de erros
+
+### 10.5 Parametrização de Dados Fixos
+- **Problema Anterior**: `organization_id` hard-coded no código
+- **Solução Implementada**:
+  - Constante `DEFAULT_ORGANIZATION_ID` em `lib/constants.ts`
+  - Facilita configuração por ambiente
+  - Prepara para multi-tenant dinâmico
+
+### 10.6 Hook de Autorização Centralizado
+- **Novo Hook**: `useAuthorization`
+- **Funcionalidades**:
+  - `hasRole(role)`: Verifica role específica
+  - `isAdmin()`: Verifica se é administrador
+  - `isManager()`: Verifica se é gerente
+  - `canManageUsers()`: Permissão de gestão de usuários
+  - `canManageProducts()`: Permissão de gestão de produtos
+  - `canManageProposals()`: Permissão de gestão de propostas
+  - `canViewReports()`: Permissão de visualização de relatórios
+- **Benefícios**:
+  - Centralização de lógica de autorização
+  - Reutilização em múltiplos componentes
+  - Facilita testes unitários
+  - Prepara para capabilities complexas
+
+### 10.7 Estrutura Preparada para Evolução
+- **Arquitetura Modular**: Base para feature modules por domínio
+- **Separação de Camadas**: Preparação para services e domain models
+- **Observabilidade**: Estrutura pronta para métricas e tracing
+- **Multi-tenant Dinâmico**: Constantes parametrizadas facilitam expansão
+
+---
+
+## 11. Próximos Passos Sugeridos
 
 1. **Relatórios e Analytics**: Dashboard com métricas de vendas
 2. **Exportação de Dados**: Exportar propostas para PDF

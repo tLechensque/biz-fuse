@@ -1,73 +1,133 @@
-# Welcome to your Lovable project
+# Sistema de Gestão Comercial Multi-Tenant
 
-## Project info
+Sistema completo de gestão comercial com controle de acesso baseado em roles, multi-tenancy e importação avançada de produtos.
 
-**URL**: https://lovable.dev/projects/eaf3898d-0551-4ec2-bbe3-4538be799ebc
+## 📋 Sobre o Projeto
 
-## How can I edit this code?
+Sistema desenvolvido para gestão de propostas comerciais, produtos, clientes e usuários com arquitetura multi-tenant robusta e segura. Implementa controle de acesso granular baseado em roles (RBAC) e isolamento total de dados por organização.
 
-There are several ways of editing your application.
+**URL do Projeto**: https://lovable.dev/projects/eaf3898d-0551-4ec2-bbe3-4538be799ebc
 
-**Use Lovable**
+## ✨ Principais Funcionalidades
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/eaf3898d-0551-4ec2-bbe3-4538be799ebc) and start prompting.
+### 🔐 Autenticação e Autorização
+- Sistema de autenticação seguro com Supabase Auth
+- Controle de acesso baseado em roles (Administrador, Gerente, Vendedor)
+- Gestão de usuários com convites por email
+- Isolamento de dados por organização (multi-tenant)
+- Hook centralizado de autorização (`useAuthorization`)
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📦 Gestão de Produtos
+- Cadastro manual completo com múltiplas imagens e vídeos
+- **Importação em massa** via Excel (.xlsx, .xls) ou CSV
+- Sistema de categorias e tags
+- Controle de estoque e preços (custo/venda)
+- Suporte a múltiplas URLs de imagem
 
-**Use your preferred IDE**
+### 👥 Gestão de Clientes
+- Cadastro completo de clientes
+- Vinculação com propostas
+- Dados de contato e endereço
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 💼 Propostas/Orçamentos
+- Criação de propostas com múltiplos produtos
+- Cálculo automático de valores e margem
+- Controle de versões
+- Status workflow (Rascunho, Enviada, Aprovada, Rejeitada)
+- Permissões diferenciadas por role
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 👨‍💼 Gestão de Usuários (Admin)
+- Convite de novos usuários por email
+- Atribuição e alteração de roles
+- Visualização de perfis
 
-Follow these steps:
+## 🏗️ Arquitetura
+
+### Frontend
+- **React 18** com TypeScript
+- **Vite** como build tool
+- **TailwindCSS** + **shadcn/ui** para UI
+- **React Router** para roteamento
+- **TanStack Query** para gerenciamento de estado
+- **React Hook Form** + **Zod** para formulários
+
+### Backend (Lovable Cloud / Supabase)
+- **PostgreSQL** com Row Level Security (RLS)
+- **Edge Functions** (Deno) para lógica serverless
+- **Supabase Auth** para autenticação
+- Multi-tenant com isolamento por `organization_id`
+
+### Melhorias Arquiteturais Recentes
+
+#### ✅ Rotas Hierárquicas
+- Layout protegido com rota pai compartilhada
+- Eliminação de duplicação de código
+- Facilita adição de middlewares
+
+#### ✅ Context de Autenticação Type-Safe
+- Validação estrita de uso do context
+- Tratamento robusto de erros
+- Armazenamento completo de session
+
+#### ✅ Acessibilidade
+- ARIA labels em componentes de loading
+- Suporte a leitores de tela
+- Feedback contextual
+
+#### ✅ Prevenção de Bugs
+- Evita recriação múltipla de perfis
+- Constantes parametrizadas (não hard-coded)
+- Hook de autorização centralizado
+
+## 🚀 Como Editar este Código
+
+### Opção 1: Usar Lovable (Recomendado)
+
+Acesse o [Projeto no Lovable](https://lovable.dev/projects/eaf3898d-0551-4ec2-bbe3-4538be799ebc) e comece a fazer prompts. Mudanças são automaticamente commitadas.
+
+### Opção 2: Desenvolvimento Local
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone o repositório
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
+# Entre na pasta
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
+# Instale dependências
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Inicie o servidor de desenvolvimento
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+**Requisitos**: Node.js & npm - [instalar com nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Opção 3: GitHub Codespaces
 
-**Use GitHub Codespaces**
+1. Vá para a página principal do repositório
+2. Clique em "Code" (botão verde)
+3. Selecione "Codespaces"
+4. Clique em "New codespace"
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 📚 Documentação
 
-## What technologies are used for this project?
+Para documentação completa da arquitetura, consulte o arquivo [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-This project is built with:
+## 🔒 Segurança
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Row Level Security (RLS) em todas as tabelas
+- Funções SECURITY DEFINER para validação de roles
+- Isolamento total por organização
+- JWT tokens para autenticação
+- Validação server-side em Edge Functions
 
-## How can I deploy this project?
+## 🌐 Deploy
 
-Simply open [Lovable](https://lovable.dev/projects/eaf3898d-0551-4ec2-bbe3-4538be799ebc) and click on Share -> Publish.
+Abra o [projeto no Lovable](https://lovable.dev/projects/eaf3898d-0551-4ec2-bbe3-4538be799ebc) e clique em Share → Publish.
 
-## Can I connect a custom domain to my Lovable project?
+### Domínio Customizado
 
-Yes, you can!
+Navegue para Project > Settings > Domains e clique em Connect Domain.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Leia mais: [Configurando domínio customizado](https://docs.lovable.dev/features/custom-domain#custom-domain)

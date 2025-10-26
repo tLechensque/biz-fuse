@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
+import { DEFAULT_ORGANIZATION_ID } from '@/lib/constants';
 
 export const useProfile = () => {
   const { user } = useAuth();
@@ -36,7 +37,7 @@ export const useProfile = () => {
           name: profileData.name,
           email: profileData.email,
           role: 'USER',
-          organization_id: '550e8400-e29b-41d4-a716-446655440000' // Default demo organization
+          organization_id: DEFAULT_ORGANIZATION_ID
         })
         .select()
         .single();

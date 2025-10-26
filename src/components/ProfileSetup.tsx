@@ -8,17 +8,17 @@ interface ProfileSetupProps {
 
 export const ProfileSetup: React.FC<ProfileSetupProps> = ({ children }) => {
   const { user } = useAuth();
-  const { profile, createProfile, isLoading } = useProfile();
+  const { profile, createProfile, isLoading, isCreatingProfile } = useProfile();
 
   useEffect(() => {
-    if (user && !profile && !isLoading) {
+    if (user && !profile && !isLoading && !isCreatingProfile) {
       // Auto-create profile for new users
       createProfile({
         name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
         email: user.email || '',
       });
     }
-  }, [user, profile, isLoading, createProfile]);
+  }, [user, profile, isLoading, isCreatingProfile, createProfile]);
 
   if (isLoading) {
     return (
