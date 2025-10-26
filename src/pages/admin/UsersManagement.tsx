@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Shield, UserPlus, Trash2, Loader2 } from 'lucide-react';
-import { Layout } from '@/components/layout/Layout';
+import { UserPlus, Trash2, Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { InviteUserDialog } from '@/components/InviteUserDialog';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 
 interface UserWithRole {
   id: string;
@@ -36,39 +36,12 @@ export default function UsersManagement() {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   useEffect(() => {
-    checkAdminStatus();
     loadUsers();
   }, []);
-
-  const checkAdminStatus = async () => {
-    if (!user) {
-      setIsAdmin(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('user_roles' as any)
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'administrador')
-        .maybeSingle();
-      
-      if (!error && data) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
-    } catch (e) {
-      console.error('Error checking admin status:', e);
-      setIsAdmin(false);
-    }
-  };
 
   const loadUsers = async () => {
     try {
@@ -168,28 +141,8 @@ export default function UsersManagement() {
     }
   };
 
-  if (!isAdmin) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Acesso Negado
-              </CardTitle>
-              <CardDescription>
-                Você não tem permissão para acessar esta página.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
-    <Layout>
+    <RoleGuard requireAdmin>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -294,6 +247,6 @@ export default function UsersManagement() {
         onOpenChange={setInviteDialogOpen}
         onSuccess={loadUsers}
       />
-    </Layout>
+    </RoleGuard>
   );
 }

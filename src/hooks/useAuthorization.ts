@@ -7,18 +7,18 @@ export type AppRole = 'administrador' | 'gerente' | 'vendedor' | 'visualizador';
 export const useAuthorization = () => {
   const { user } = useAuth();
 
+  // Use RPC to call SECURITY DEFINER functions instead of direct queries
   const { data: userRoles, isLoading } = useQuery({
     queryKey: ['userRoles', user?.id],
     queryFn: async () => {
       if (!user) return [];
       
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id);
+      const { data, error } = await supabase.rpc('get_user_roles', {
+        _user_id: user.id
+      });
 
       if (error) throw error;
-      return data?.map(r => r.role as AppRole) || [];
+      return (data as AppRole[]) || [];
     },
     enabled: !!user,
   });
@@ -29,6 +29,7 @@ export const useAuthorization = () => {
 
   const isAdmin = () => hasRole('administrador');
   const isManager = () => hasRole('gerente');
+  const isSeller = () => hasRole('vendedor');
   const canManageUsers = () => isAdmin();
   const canManageProducts = () => isAdmin() || isManager();
   const canManageProposals = () => isAdmin() || isManager();
@@ -40,6 +41,7 @@ export const useAuthorization = () => {
     hasRole,
     isAdmin,
     isManager,
+    isSeller,
     canManageUsers,
     canManageProducts,
     canManageProposals,

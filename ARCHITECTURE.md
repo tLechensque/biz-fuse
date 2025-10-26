@@ -155,13 +155,141 @@ Este documento descreve toda a arquitetura e funcionalidades implementadas no si
 
 ## 2. Segurança (Row Level Security - RLS)
 
-### 2.1 Princípios de Segurança
+### 2.1 Princípios de Segurança CRÍTICOS
+
+**⚠️ AVISO DE SEGURANÇA**: Este sistema implementa segurança em múltiplas camadas. NUNCA remova ou contorne as verificações de segurança.
 
 1. **Isolamento por Organização**: Todos os dados são isolados por `organization_id`
 2. **Controle Baseado em Roles**: Diferentes níveis de acesso por role
 3. **Propriedade de Dados**: Usuários podem gerenciar apenas seus próprios dados (exceto admins/gerentes)
+4. **Funções SECURITY DEFINER**: Todas as verificações de role usam funções SQL seguras
+5. **Sem Verificações Client-Side**: NUNCA verificar roles usando localStorage ou queries diretas
 
-### 2.2 Políticas RLS por Tabela
+### 2.2 Arquitetura de Autorização
+
+#### 2.2.1 Funções de Segurança (SECURITY DEFINER)
+
+Todas as verificações de autorização utilizam funções SQL com `SECURITY DEFINER` que:
+- **Bypasam RLS policies** para evitar recursão
+- **Executam com privilégios elevados** do owner do banco
+- **São chamadas via RPC** do client para garantir segurança
+
+**Funções Disponíveis:**
+
+```sql
+-- Verificações básicas de role
+has_role(_user_id uuid, _role app_role) → boolean
+is_admin(_user_id uuid) → boolean
+is_manager(_user_id uuid) → boolean
+is_seller(_user_id uuid) → boolean
+
+-- Verificações de permissões compostas
+can_manage_users(_user_id uuid) → boolean    -- Admin only
+can_manage_products(_user_id uuid) → boolean -- Admin OR Manager
+can_manage_proposals(_user_id uuid) → boolean -- Admin OR Manager
+
+-- Obter todas as roles
+get_user_roles(_user_id uuid) → app_role[]
+```
+
+**❌ NUNCA FAÇA ASSIM (Inseguro):**
+```typescript
+// Query direta - pode ser manipulada
+const { data } = await supabase
+  .from('user_roles')
+  .select('role')
+  .eq('user_id', user.id);
+```
+
+**✅ SEMPRE FAÇA ASSIM (Seguro):**
+```typescript
+// RPC para função SECURITY DEFINER
+const { data } = await supabase.rpc('get_user_roles', {
+  _user_id: user.id
+});
+```
+
+#### 2.2.2 Hook de Autorização (useAuthorization)
+
+**Localização**: `src/hooks/useAuthorization.ts`
+
+Hook centralizado que encapsula todas as verificações de autorização:
+
+```typescript
+const { 
+  userRoles,      // Array de roles do usuário
+  isLoading,      // Estado de carregamento
+  hasRole,        // Verificar role específico
+  isAdmin,        // É administrador?
+  isManager,      // É gerente?
+  isSeller,       // É vendedor?
+  canManageUsers, // Pode gerenciar usuários?
+  canManageProducts, // Pode gerenciar produtos?
+  canManageProposals, // Pode gerenciar propostas?
+  canViewReports  // Pode ver relatórios?
+} = useAuthorization();
+```
+
+**Implementação Interna**:
+- Usa React Query para cache e invalidação
+- Chama `supabase.rpc('get_user_roles')` via SECURITY DEFINER
+- Retorna funções helper para verificações comuns
+- Nunca expõe queries diretas ao client
+
+#### 2.2.3 Componente RoleGuard
+
+**Localização**: `src/components/auth/RoleGuard.tsx`
+
+Componente de proteção baseado em roles para páginas e seções:
+
+```typescript
+// Proteger página admin
+<RoleGuard requireAdmin>
+  <AdminContent />
+</RoleGuard>
+
+// Proteger página manager (ou superior)
+<RoleGuard requireManager>
+  <ManagerContent />
+</RoleGuard>
+
+// Proteger por role específico
+<RoleGuard requiredRole="vendedor">
+  <SellerContent />
+</RoleGuard>
+```
+
+**Características**:
+- Loading state enquanto verifica permissões
+- Fallback customizável para acesso negado
+- Usa `useAuthorization` internamente
+- Nunca faz queries diretas
+
+### 2.3 Fluxo de Autorização
+
+```
+1. Usuário faz login
+   ↓
+2. AuthProvider carrega session
+   ↓
+3. Componente usa useAuthorization hook
+   ↓
+4. Hook chama supabase.rpc('get_user_roles', { _user_id })
+   ↓
+5. Função SECURITY DEFINER no servidor verifica user_roles
+   ↓
+6. Servidor retorna roles (bypassa RLS com segurança)
+   ↓
+7. Frontend renderiza UI baseado em roles
+   ↓
+8. Ações críticas protegidas por RLS policies no servidor
+```
+
+**Dupla Proteção**: 
+- **Frontend**: Melhora UX escondendo opções indisponíveis
+- **Backend**: Segurança real via RLS policies e funções SECURITY DEFINER
+
+### 2.4 Políticas RLS por Tabela
 
 #### Profiles
 - Usuários podem ver e editar apenas seu próprio perfil
@@ -172,6 +300,11 @@ Este documento descreve toda a arquitetura e funcionalidades implementadas no si
 
 #### User Roles
 - Apenas administradores podem gerenciar roles
+- **Policy usa**: `is_admin(auth.uid())`
+
+#### Permissions
+- Apenas administradores podem gerenciar permissões
+- **Policy usa**: `is_admin(auth.uid())`
 
 #### Products, Categories, Tags
 - Usuários veem apenas dados de sua organização
@@ -185,7 +318,8 @@ Este documento descreve toda a arquitetura e funcionalidades implementadas no si
 - Usuários veem todas as propostas de sua organização
 - Podem criar propostas
 - Podem editar/deletar apenas suas próprias propostas
-- **Exceção**: Administradores e gerentes podem editar/deletar todas as propostas da organização
+- **Exceção**: Administradores e gerentes podem editar/deletar todas
+  - **Policy usa**: `has_role(auth.uid(), 'administrador') OR has_role(auth.uid(), 'gerente')`
 
 ---
 
@@ -520,21 +654,51 @@ Este documento descreve toda a arquitetura e funcionalidades implementadas no si
   - Facilita configuração por ambiente
   - Prepara para multi-tenant dinâmico
 
-### 10.6 Hook de Autorização Centralizado
-- **Novo Hook**: `useAuthorization`
-- **Funcionalidades**:
-  - `hasRole(role)`: Verifica role específica
-  - `isAdmin()`: Verifica se é administrador
-  - `isManager()`: Verifica se é gerente
-  - `canManageUsers()`: Permissão de gestão de usuários
-  - `canManageProducts()`: Permissão de gestão de produtos
-  - `canManageProposals()`: Permissão de gestão de propostas
-  - `canViewReports()`: Permissão de visualização de relatórios
-- **Benefícios**:
-  - Centralização de lógica de autorização
-  - Reutilização em múltiplos componentes
-  - Facilita testes unitários
-  - Prepara para capabilities complexas
+### 10.6 Reconfiguração de Segurança com RPC e SECURITY DEFINER
+
+#### Problema Anterior
+- Verificações de admin faziam queries diretas à tabela `user_roles`
+- Código duplicado em múltiplas páginas admin
+- Vulnerável a manipulação client-side
+- Não seguia princípios OWASP de segurança
+
+#### Solução Implementada
+
+**1. Funções SECURITY DEFINER no Banco:**
+```sql
+-- Criadas funções helper no servidor
+is_manager(_user_id uuid)
+is_seller(_user_id uuid)
+get_user_roles(_user_id uuid)
+can_manage_users(_user_id uuid)
+can_manage_products(_user_id uuid)
+can_manage_proposals(_user_id uuid)
+```
+
+**2. Hook useAuthorization Atualizado:**
+- Mudou de queries diretas para RPC calls
+- Usa `supabase.rpc('get_user_roles')` via SECURITY DEFINER
+- Cache com React Query
+- Type-safe com TypeScript
+
+**3. Componente RoleGuard:**
+- Novo componente para proteção declarativa
+- Substitui verificações manuais de `isAdmin`
+- Loading states integrados
+- Fallback customizável
+
+**4. Páginas Admin Refatoradas:**
+- `UsersManagement`: Agora usa `RoleGuard requireAdmin`
+- `PermissionsManagement`: Agora usa `RoleGuard requireAdmin`
+- Removidas verificações client-side inseguras
+- Código mais limpo e seguro
+
+#### Benefícios
+- ✅ **Segurança**: Verificações server-side imutáveis
+- ✅ **Manutenibilidade**: Lógica centralizada
+- ✅ **Performance**: Cache com React Query
+- ✅ **DX**: API declarativa e type-safe
+- ✅ **Compliance**: Segue boas práticas OWASP
 
 ### 10.7 Estrutura Preparada para Evolução
 - **Arquitetura Modular**: Base para feature modules por domínio

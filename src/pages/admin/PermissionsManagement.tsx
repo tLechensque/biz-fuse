@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Shield, Loader2, Settings } from 'lucide-react';
-import { Layout } from '@/components/layout/Layout';
+import { Loader2, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 
 interface Permission {
   id: string;
@@ -36,38 +34,11 @@ export default function PermissionsManagement() {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    checkAdminStatus();
     loadData();
   }, []);
-
-  const checkAdminStatus = async () => {
-    if (!user) {
-      setIsAdmin(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('user_roles' as any)
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'administrador')
-        .maybeSingle();
-      
-      if (!error && data) {
-        setIsAdmin(true);
-      } else {
-        setIsAdmin(false);
-      }
-    } catch (e) {
-      console.error('Error checking admin status:', e);
-      setIsAdmin(false);
-    }
-  };
 
   const loadData = async () => {
     try {
@@ -151,28 +122,8 @@ export default function PermissionsManagement() {
     return acc;
   }, {} as Record<string, Permission[]>);
 
-  if (!isAdmin) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Acesso Negado
-              </CardTitle>
-              <CardDescription>
-                Você não tem permissão para acessar esta página.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
-    <Layout>
+    <RoleGuard requireAdmin>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -258,6 +209,6 @@ export default function PermissionsManagement() {
           ))}
         </Tabs>
       </div>
-    </Layout>
+    </RoleGuard>
   );
 }
