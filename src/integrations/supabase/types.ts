@@ -919,6 +919,7 @@ export type Database = {
       can_manage_products: { Args: { _user_id: string }; Returns: boolean }
       can_manage_proposals: { Args: { _user_id: string }; Returns: boolean }
       can_manage_users: { Args: { _user_id: string }; Returns: boolean }
+      get_user_organization_id: { Args: { _user_id: string }; Returns: string }
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]

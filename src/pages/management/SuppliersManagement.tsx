@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import InputMask from 'react-input-mask';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -239,12 +240,19 @@ export default function SuppliersManagement() {
 
                   <div className="space-y-2">
                     <Label htmlFor="cnpj">CNPJ</Label>
-                    <Input
-                      id="cnpj"
+                    <InputMask
+                      mask="99.999.999/9999-99"
                       value={formData.cnpj}
                       onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                      placeholder="00.000.000/0000-00"
-                    />
+                    >
+                      {(inputProps: any) => (
+                        <Input
+                          {...inputProps}
+                          id="cnpj"
+                          placeholder="00.000.000/0000-00"
+                        />
+                      )}
+                    </InputMask>
                   </div>
 
                   <div className="space-y-2">
@@ -270,22 +278,36 @@ export default function SuppliersManagement() {
 
                   <div className="space-y-2">
                     <Label htmlFor="phone">Telefone</Label>
-                    <Input
-                      id="phone"
+                    <InputMask
+                      mask="(99) 9999-9999"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="(00) 0000-0000"
-                    />
+                    >
+                      {(inputProps: any) => (
+                        <Input
+                          {...inputProps}
+                          id="phone"
+                          placeholder="(00) 0000-0000"
+                        />
+                      )}
+                    </InputMask>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="whatsapp">WhatsApp</Label>
-                    <Input
-                      id="whatsapp"
+                    <InputMask
+                      mask="(99) 99999-9999"
                       value={formData.whatsapp}
                       onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                      placeholder="(00) 00000-0000"
-                    />
+                    >
+                      {(inputProps: any) => (
+                        <Input
+                          {...inputProps}
+                          id="whatsapp"
+                          placeholder="(00) 00000-0000"
+                        />
+                      )}
+                    </InputMask>
                   </div>
 
                   <div className="col-span-2 space-y-2">
