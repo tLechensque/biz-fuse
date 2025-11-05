@@ -14,6 +14,8 @@ import PermissionsManagement from "./pages/admin/PermissionsManagement";
 import CategoriesManagement from "./pages/management/CategoriesManagement";
 import TagsManagement from "./pages/management/TagsManagement";
 import BrandsManagement from "./pages/management/BrandsManagement";
+import SuppliersManagement from "./pages/management/SuppliersManagement";
+import PriceTablesManagement from "./pages/management/PriceTablesManagement";
 import PaymentsManagement from "./pages/management/PaymentsManagement";
 import OrganizationSettings from "./pages/management/OrganizationSettings";
 import DiscountsManagement from "./pages/management/DiscountsManagement";
@@ -69,6 +71,8 @@ const App = () => (
                 <Route path="/categories" element={<CategoriesManagement />} />
                 <Route path="/tags" element={<TagsManagement />} />
                 <Route path="/brands" element={<BrandsManagement />} />
+                <Route path="/suppliers" element={<SuppliersManagement />} />
+                <Route path="/price-tables" element={<PriceTablesManagement />} />
                 <Route path="/discounts" element={<DiscountsManagement />} />
                 <Route path="/admin/users" element={<UsersManagement />} />
                 <Route path="/admin/permissions" element={<PermissionsManagement />} />

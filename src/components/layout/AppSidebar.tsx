@@ -13,6 +13,8 @@ import {
   PieChart,
   Shield,
   Percent,
+  FileSpreadsheet,
+  Truck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -43,6 +45,8 @@ const managementItems = [
   { title: "Categorias", url: "/categories", icon: Layers },
   { title: "Tags", url: "/tags", icon: Package },
   { title: "Marcas", url: "/brands", icon: Package },
+  { title: "Fornecedores", url: "/suppliers", icon: Truck },
+  { title: "Tabelas de Preços", url: "/price-tables", icon: FileSpreadsheet },
   { title: "Descontos", url: "/discounts", icon: Percent },
   { title: "Templates", url: "/templates", icon: FileText },
   { title: "Portfólio", url: "/portfolio", icon: PieChart },

@@ -466,9 +466,10 @@ export default function PaymentsManagement() {
                                   step="0.01"
                                   placeholder="%"
                                   className="h-8"
-                                  value={currentFee?.fee || ''}
+                                  value={currentFee?.fee ?? ''}
                                   onChange={(e) => {
-                                    const fee = parseFloat(e.target.value) || 0;
+                                    const value = e.target.value;
+                                    const fee = value === '' ? 0 : parseFloat(value);
                                     CARD_BRANDS.forEach(brand => {
                                       updateBrandFee(brand, installment, fee);
                                     });

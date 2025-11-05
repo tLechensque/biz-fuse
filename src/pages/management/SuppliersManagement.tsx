@@ -29,7 +29,6 @@ interface Supplier {
   address: string | null;
   notes: string | null;
   is_active: boolean;
-  price_list_url: string | null;
   created_at: string;
 }
 
@@ -56,9 +55,7 @@ export default function SuppliersManagement() {
     address: '',
     notes: '',
     is_active: true,
-    price_list_url: null as string | null,
   });
-  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ['suppliers', profile?.organization_id],
@@ -178,7 +175,6 @@ export default function SuppliersManagement() {
       address: supplier.address || '',
       notes: supplier.notes || '',
       is_active: supplier.is_active,
-      price_list_url: supplier.price_list_url,
     });
     setDialogOpen(true);
   };
@@ -196,50 +192,8 @@ export default function SuppliersManagement() {
       address: '',
       notes: '',
       is_active: true,
-      price_list_url: null,
     });
     setDialogOpen(true);
-  };
-
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !profile?.organization_id) return;
-
-    if (file.type !== 'application/pdf') {
-      toast({
-        title: 'Arquivo inválido',
-        description: 'Por favor, envie apenas arquivos PDF',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setUploadingPdf(true);
-    try {
-      const fileExt = 'pdf';
-      const fileName = `${profile.organization_id}/${Date.now()}_${file.name}`;
-      
-      const { error: uploadError, data } = await supabase.storage
-        .from('price-lists')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('price-lists')
-        .getPublicUrl(fileName);
-
-      setFormData({ ...formData, price_list_url: publicUrl });
-      toast({ title: 'PDF enviado com sucesso' });
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao enviar PDF',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setUploadingPdf(false);
-    }
   };
 
   const handleCloseDialog = () => {
@@ -398,34 +352,6 @@ export default function SuppliersManagement() {
                     />
                   </div>
 
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="price_list">Lista de Preços (PDF)</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="price_list"
-                        type="file"
-                        accept="application/pdf"
-                        onChange={handlePdfUpload}
-                        disabled={uploadingPdf}
-                        className="flex-1"
-                      />
-                      {uploadingPdf && <Loader2 className="h-4 w-4 animate-spin" />}
-                    </div>
-                    {formData.price_list_url && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <FileText className="h-4 w-4" />
-                        <a 
-                          href={formData.price_list_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="hover:underline"
-                        >
-                          Ver PDF atual
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
                   {editingSupplier && (
                     <div className="col-span-2 space-y-2">
                       <Label>Marcas Associadas</Label>
@@ -490,7 +416,6 @@ export default function SuppliersManagement() {
                   <TableHead>Contato</TableHead>
                   <TableHead>CNPJ</TableHead>
                   <TableHead>Marcas</TableHead>
-                  <TableHead>Lista de Preços</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -551,19 +476,6 @@ export default function SuppliersManagement() {
                           </Badge>
                         )}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {supplier.price_list_url ? (
-                        <a 
-                          href={supplier.price_list_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-primary hover:underline"
-                        >
-                          <FileText className="h-4 w-4" />
-                          Ver PDF
-                        </a>
-                      ) : '-'}
                     </TableCell>
                     <TableCell>
                       <Badge variant={supplier.is_active ? 'default' : 'secondary'}>
