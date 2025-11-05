@@ -178,17 +178,16 @@ export default function PriceTablesManagement() {
     try {
       const fileName = `${profile.organization_id}/${Date.now()}_${file.name}`;
       
-      const { error: uploadError } = await supabase.storage
+      const { data, error: uploadError } = await supabase.storage
         .from('price-lists')
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('price-lists')
-        .getPublicUrl(fileName);
+      // Usar o path do arquivo ao invés de URL pública (bucket é privado)
+      const fileUrl = fileName;
 
-      setFormData({ ...formData, pdf_url: publicUrl });
+      setFormData({ ...formData, pdf_url: fileUrl });
       toast({ title: 'PDF enviado com sucesso' });
     } catch (error: any) {
       toast({
@@ -340,19 +339,12 @@ export default function PriceTablesManagement() {
                       />
                       {uploadingPdf && <Loader2 className="h-4 w-4 animate-spin" />}
                     </div>
-                    {formData.pdf_url && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <FileText className="h-4 w-4" />
-                        <a 
-                          href={formData.pdf_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="hover:underline"
-                        >
-                          Ver PDF atual
-                        </a>
-                      </div>
-                    )}
+                     {formData.pdf_url && (
+                       <div className="flex items-center gap-2 text-sm text-green-600">
+                         <FileText className="h-4 w-4" />
+                         <span>PDF anexado com sucesso</span>
+                       </div>
+                     )}
                   </div>
 
                   <div className="col-span-2 space-y-2">
@@ -502,17 +494,24 @@ export default function PriceTablesManagement() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <a 
-                        href={table.pdf_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-primary hover:underline"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Ver PDF
-                      </a>
-                    </TableCell>
+                     <TableCell>
+                       <a 
+                         href="#"
+                         onClick={async (e) => {
+                           e.preventDefault();
+                           const { data } = await supabase.storage
+                             .from('price-lists')
+                             .createSignedUrl(table.pdf_url, 3600);
+                           if (data?.signedUrl) {
+                             window.open(data.signedUrl, '_blank');
+                           }
+                         }}
+                         className="flex items-center gap-1 text-primary hover:underline"
+                       >
+                         <FileText className="h-4 w-4" />
+                         Ver PDF
+                       </a>
+                     </TableCell>
                     <TableCell>
                       <Badge variant={table.is_active ? 'default' : 'secondary'}>
                         {table.is_active ? 'Ativa' : 'Inativa'}

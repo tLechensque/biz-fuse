@@ -850,6 +850,7 @@ export type Database = {
       suppliers: {
         Row: {
           address: string | null
+          brand_ids: string[] | null
           cnpj: string | null
           contact_name: string | null
           created_at: string
@@ -866,6 +867,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          brand_ids?: string[] | null
           cnpj?: string | null
           contact_name?: string | null
           created_at?: string
@@ -882,6 +884,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          brand_ids?: string[] | null
           cnpj?: string | null
           contact_name?: string | null
           created_at?: string

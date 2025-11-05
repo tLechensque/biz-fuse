@@ -20,16 +20,19 @@ import { RoleGuard } from '@/components/auth/RoleGuard';
 interface Supplier {
   id: string;
   name: string;
-  razao_social: string | null;
   cnpj: string | null;
   contact_name: string | null;
   email: string | null;
-  phone: string | null;
   whatsapp: string | null;
-  address: string | null;
-  notes: string | null;
+  brand_ids: string[];
   is_active: boolean;
   created_at: string;
+}
+
+interface PriceTable {
+  id: string;
+  name: string;
+  supplier_ids: string[];
 }
 
 interface Brand {
@@ -46,14 +49,11 @@ export default function SuppliersManagement() {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    razao_social: '',
     cnpj: '',
     contact_name: '',
     email: '',
-    phone: '',
     whatsapp: '',
-    address: '',
-    notes: '',
+    brand_ids: [] as string[],
     is_active: true,
   });
 
@@ -83,6 +83,21 @@ export default function SuppliersManagement() {
       
       if (error) throw error;
       return data as Brand[];
+    },
+    enabled: !!profile?.organization_id,
+  });
+
+  const { data: priceTables = [] } = useQuery({
+    queryKey: ['price_tables', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('price_tables')
+        .select('id, name, supplier_ids')
+        .eq('organization_id', profile?.organization_id!)
+        .order('name');
+      
+      if (error) throw error;
+      return data as PriceTable[];
     },
     enabled: !!profile?.organization_id,
   });
@@ -166,14 +181,11 @@ export default function SuppliersManagement() {
     setEditingSupplier(supplier);
     setFormData({
       name: supplier.name,
-      razao_social: supplier.razao_social || '',
       cnpj: supplier.cnpj || '',
       contact_name: supplier.contact_name || '',
       email: supplier.email || '',
-      phone: supplier.phone || '',
       whatsapp: supplier.whatsapp || '',
-      address: supplier.address || '',
-      notes: supplier.notes || '',
+      brand_ids: supplier.brand_ids || [],
       is_active: supplier.is_active,
     });
     setDialogOpen(true);
@@ -183,17 +195,23 @@ export default function SuppliersManagement() {
     setEditingSupplier(null);
     setFormData({
       name: '',
-      razao_social: '',
       cnpj: '',
       contact_name: '',
       email: '',
-      phone: '',
       whatsapp: '',
-      address: '',
-      notes: '',
+      brand_ids: [],
       is_active: true,
     });
     setDialogOpen(true);
+  };
+
+  const toggleBrand = (brandId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      brand_ids: prev.brand_ids.includes(brandId)
+        ? prev.brand_ids.filter(id => id !== brandId)
+        : [...prev.brand_ids, brandId]
+    }));
   };
 
   const handleCloseDialog = () => {
@@ -236,146 +254,122 @@ export default function SuppliersManagement() {
                   Cadastre os dados completos do fornecedor
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="name">Nome Fantasia*</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Nome comercial"
-                      required
-                    />
-                  </div>
+               <form onSubmit={handleSubmit} className="space-y-4">
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="col-span-2 space-y-2">
+                     <Label htmlFor="name">Nome do Fornecedor*</Label>
+                     <Input
+                       id="name"
+                       value={formData.name}
+                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                       placeholder="Nome do fornecedor"
+                       required
+                     />
+                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="razao_social">Razão Social</Label>
-                    <Input
-                      id="razao_social"
-                      value={formData.razao_social}
-                      onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
-                      placeholder="Razão social completa"
-                    />
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="cnpj">CNPJ</Label>
+                     <InputMask
+                       mask="99.999.999/9999-99"
+                       value={formData.cnpj}
+                       onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                     >
+                       {(inputProps: any) => (
+                         <Input
+                           {...inputProps}
+                           id="cnpj"
+                           placeholder="00.000.000/0000-00"
+                         />
+                       )}
+                     </InputMask>
+                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="cnpj">CNPJ</Label>
-                    <InputMask
-                      mask="99.999.999/9999-99"
-                      value={formData.cnpj}
-                      onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                    >
-                      {(inputProps: any) => (
-                        <Input
-                          {...inputProps}
-                          id="cnpj"
-                          placeholder="00.000.000/0000-00"
-                        />
-                      )}
-                    </InputMask>
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="contact_name">Nome do Contato</Label>
+                     <Input
+                       id="contact_name"
+                       value={formData.contact_name}
+                       onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                       placeholder="Pessoa de contato"
+                     />
+                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="contact_name">Nome do Contato</Label>
-                    <Input
-                      id="contact_name"
-                      value={formData.contact_name}
-                      onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                      placeholder="Pessoa de contato"
-                    />
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="email">E-mail</Label>
+                     <Input
+                       id="email"
+                       type="email"
+                       value={formData.email}
+                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                       placeholder="contato@fornecedor.com"
+                     />
+                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="email">E-mail</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="contato@fornecedor.com"
-                    />
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="whatsapp">WhatsApp</Label>
+                     <InputMask
+                       mask="(99) 99999-9999"
+                       value={formData.whatsapp}
+                       onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                     >
+                       {(inputProps: any) => (
+                         <Input
+                           {...inputProps}
+                           id="whatsapp"
+                           placeholder="(00) 00000-0000"
+                         />
+                       )}
+                     </InputMask>
+                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone</Label>
-                    <InputMask
-                      mask="(99) 9999-9999"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    >
-                      {(inputProps: any) => (
-                        <Input
-                          {...inputProps}
-                          id="phone"
-                          placeholder="(00) 0000-0000"
-                        />
-                      )}
-                    </InputMask>
-                  </div>
+                   <div className="col-span-2 space-y-2">
+                     <Label>Marcas Representadas</Label>
+                     <div className="p-4 border rounded-lg space-y-2 max-h-40 overflow-y-auto">
+                       {brands.length > 0 ? (
+                         brands.map(brand => (
+                           <div key={brand.id} className="flex items-center gap-2">
+                             <input
+                               type="checkbox"
+                               checked={formData.brand_ids.includes(brand.id)}
+                               onChange={() => toggleBrand(brand.id)}
+                               className="rounded"
+                             />
+                             <Label className="cursor-pointer flex items-center gap-1">
+                               <Package className="h-3 w-3" />
+                               {brand.name}
+                             </Label>
+                           </div>
+                         ))
+                       ) : (
+                         <p className="text-sm text-muted-foreground">Nenhuma marca cadastrada</p>
+                       )}
+                     </div>
+                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="whatsapp">WhatsApp</Label>
-                    <InputMask
-                      mask="(99) 99999-9999"
-                      value={formData.whatsapp}
-                      onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                    >
-                      {(inputProps: any) => (
-                        <Input
-                          {...inputProps}
-                          id="whatsapp"
-                          placeholder="(00) 00000-0000"
-                        />
-                      )}
-                    </InputMask>
-                  </div>
-
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="address">Endereço</Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      placeholder="Endereço completo"
-                    />
-                  </div>
-
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="notes">Observações</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      placeholder="Informações adicionais sobre o fornecedor"
-                      rows={3}
-                    />
-                  </div>
-
-                  {editingSupplier && (
-                    <div className="col-span-2 space-y-2">
-                      <Label>Marcas Associadas</Label>
-                      <div className="p-4 border rounded-lg bg-muted/30">
-                        {brands.filter(b => b.supplier_id === editingSupplier.id).length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {brands
-                              .filter(b => b.supplier_id === editingSupplier.id)
-                              .map(brand => (
-                                <Badge key={brand.id} variant="secondary" className="flex items-center gap-1">
-                                  <Package className="h-3 w-3" />
-                                  {brand.name}
-                                </Badge>
-                              ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            Nenhuma marca associada. Vincule marcas na página de Marcas.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                   {editingSupplier && (
+                     <div className="col-span-2 space-y-2">
+                       <Label>Tabelas de Preços Associadas</Label>
+                       <div className="p-4 border rounded-lg bg-muted/30">
+                         {priceTables.filter(pt => pt.supplier_ids?.includes(editingSupplier.id)).length > 0 ? (
+                           <div className="flex flex-wrap gap-2">
+                             {priceTables
+                               .filter(pt => pt.supplier_ids?.includes(editingSupplier.id))
+                               .map(table => (
+                                 <Badge key={table.id} variant="secondary" className="flex items-center gap-1">
+                                   <FileText className="h-3 w-3" />
+                                   {table.name}
+                                 </Badge>
+                               ))}
+                           </div>
+                         ) : (
+                           <p className="text-sm text-muted-foreground">
+                             Nenhuma tabela de preços associada
+                           </p>
+                         )}
+                       </div>
+                     </div>
+                   )}
+                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="flex items-center gap-2">
@@ -411,72 +405,59 @@ export default function SuppliersManagement() {
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Marcas</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
+                 <TableRow>
+                   <TableHead>Nome</TableHead>
+                   <TableHead>CNPJ</TableHead>
+                   <TableHead>Contato</TableHead>
+                   <TableHead>Marcas</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead className="text-right">Ações</TableHead>
+                 </TableRow>
               </TableHeader>
               <TableBody>
-                {suppliers.map((supplier) => (
-                  <TableRow key={supplier.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <div>
-                          <div className="font-medium">{supplier.name}</div>
-                          {supplier.razao_social && (
-                            <div className="text-sm text-muted-foreground">
-                              {supplier.razao_social}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1 text-sm">
-                        {supplier.contact_name && (
-                          <div>{supplier.contact_name}</div>
-                        )}
-                        {supplier.email && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {supplier.email}
-                          </div>
-                        )}
-                        {supplier.whatsapp && (
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            {supplier.whatsapp}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{supplier.cnpj || '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1 max-w-[200px]">
-                        {brands.filter(b => b.supplier_id === supplier.id).length > 0 ? (
-                          brands
-                            .filter(b => b.supplier_id === supplier.id)
-                            .slice(0, 3)
-                            .map(brand => (
-                              <Badge key={brand.id} variant="outline" className="text-xs">
-                                {brand.name}
-                              </Badge>
-                            ))
-                        ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
-                        )}
-                        {brands.filter(b => b.supplier_id === supplier.id).length > 3 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{brands.filter(b => b.supplier_id === supplier.id).length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
+                 {suppliers.map((supplier) => (
+                   <TableRow key={supplier.id}>
+                     <TableCell>
+                       <div className="flex items-center gap-2">
+                         <Building2 className="h-4 w-4 text-muted-foreground" />
+                         <div className="font-medium">{supplier.name}</div>
+                       </div>
+                     </TableCell>
+                     <TableCell>{supplier.cnpj || '-'}</TableCell>
+                     <TableCell>
+                       <div className="space-y-1 text-sm">
+                         {supplier.contact_name && (
+                           <div className="font-medium">{supplier.contact_name}</div>
+                         )}
+                         {supplier.email && (
+                           <div className="text-muted-foreground">{supplier.email}</div>
+                         )}
+                         {supplier.whatsapp && (
+                           <div className="text-muted-foreground">{supplier.whatsapp}</div>
+                         )}
+                       </div>
+                     </TableCell>
+                     <TableCell>
+                       <div className="flex flex-wrap gap-1 max-w-[200px]">
+                         {supplier.brand_ids && supplier.brand_ids.length > 0 ? (
+                           supplier.brand_ids.slice(0, 3).map(brandId => {
+                             const brand = brands.find(b => b.id === brandId);
+                             return brand ? (
+                               <Badge key={brandId} variant="outline" className="text-xs">
+                                 {brand.name}
+                               </Badge>
+                             ) : null;
+                           })
+                         ) : (
+                           <span className="text-sm text-muted-foreground">-</span>
+                         )}
+                         {supplier.brand_ids && supplier.brand_ids.length > 3 && (
+                           <Badge variant="outline" className="text-xs">
+                             +{supplier.brand_ids.length - 3}
+                           </Badge>
+                         )}
+                       </div>
+                     </TableCell>
                     <TableCell>
                       <Badge variant={supplier.is_active ? 'default' : 'secondary'}>
                         {supplier.is_active ? 'Ativo' : 'Inativo'}
