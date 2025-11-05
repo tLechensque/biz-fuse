@@ -300,7 +300,7 @@ export default function PaymentsManagement() {
                   />
                 </div>
 
-                {(formData.provider_type === 'maquininha' || formData.provider_type === 'link_pagamento') && (
+                {formData.provider_type === 'maquininha' && (
                   <div className="space-y-4 border-t pt-4">
                     <h3 className="font-semibold">Configuração por Bandeira</h3>
                     
@@ -399,6 +399,87 @@ export default function PaymentsManagement() {
                         </TabsContent>
                       ))}
                     </Tabs>
+                  </div>
+                )}
+
+                {formData.provider_type === 'link_pagamento' && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h3 className="font-semibold">Configuração de Crédito (Taxa Única)</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Link de pagamento não diferencia bandeiras. Configure uma taxa única para todas as bandeiras.
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Máx Parcelas Crédito</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="24"
+                          value={formData.card_brands_config.visa.credit_max_installments}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 1;
+                            setFormData({
+                              ...formData,
+                              card_brands_config: {
+                                visa: { ...formData.card_brands_config.visa, credit_max_installments: value, debit_fee: 0 },
+                                mastercard: { ...formData.card_brands_config.mastercard, credit_max_installments: value, debit_fee: 0 },
+                                elo: { ...formData.card_brands_config.elo, credit_max_installments: value, debit_fee: 0 },
+                              }
+                            });
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Parcelas Sem Juros</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max={formData.card_brands_config.visa.credit_max_installments}
+                          value={formData.card_brands_config.visa.credit_interest_free}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            setFormData({
+                              ...formData,
+                              card_brands_config: {
+                                visa: { ...formData.card_brands_config.visa, credit_interest_free: value },
+                                mastercard: { ...formData.card_brands_config.mastercard, credit_interest_free: value },
+                                elo: { ...formData.card_brands_config.elo, credit_interest_free: value },
+                              }
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {formData.card_brands_config.visa.credit_max_installments > 1 && (
+                      <div className="space-y-3">
+                        <Label>Taxas por Parcela (Crédito %)</Label>
+                        <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 border rounded">
+                          {Array.from({ length: formData.card_brands_config.visa.credit_max_installments }, (_, i) => i + 1).map((installment) => {
+                            const currentFee = formData.card_brands_config.visa.credit_fees?.find((f: CardBrandFee) => f.installment === installment);
+                            return (
+                              <div key={installment} className="flex items-center gap-2">
+                                <Label className="text-xs w-12">{installment}x:</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="%"
+                                  className="h-8"
+                                  value={currentFee?.fee || ''}
+                                  onChange={(e) => {
+                                    const fee = parseFloat(e.target.value) || 0;
+                                    CARD_BRANDS.forEach(brand => {
+                                      updateBrandFee(brand, installment, fee);
+                                    });
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
