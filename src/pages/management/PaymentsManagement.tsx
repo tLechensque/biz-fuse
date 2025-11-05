@@ -25,6 +25,7 @@ interface PaymentMethod {
   interest_free_installments: number | null;
   fee_percentage: number | null;
   fee_per_installment: any;
+  allow_down_payment: boolean | null;
   created_at: string;
 }
 
@@ -43,6 +44,7 @@ export default function PaymentsManagement() {
     interest_free_installments: 0,
     fee_percentage: 0,
     can_transfer_fee: false,
+    allow_down_payment: false,
     fee_per_installment: [] as { installment: number; fee: number }[],
   });
 
@@ -147,6 +149,7 @@ export default function PaymentsManagement() {
       interest_free_installments: method.interest_free_installments || 0,
       fee_percentage: method.fee_percentage || 0,
       can_transfer_fee: false,
+      allow_down_payment: method.allow_down_payment || false,
       fee_per_installment: method.fee_per_installment || [],
     });
     setDialogOpen(true);
@@ -163,6 +166,7 @@ export default function PaymentsManagement() {
       interest_free_installments: 0,
       fee_percentage: 0,
       can_transfer_fee: false,
+      allow_down_payment: false,
       fee_per_installment: [],
     });
     setDialogOpen(true);
@@ -180,6 +184,7 @@ export default function PaymentsManagement() {
       interest_free_installments: 0,
       fee_percentage: 0,
       can_transfer_fee: false,
+      allow_down_payment: false,
       fee_per_installment: [],
     });
   };
@@ -272,33 +277,11 @@ export default function PaymentsManagement() {
 
                 {(formData.type === 'credit_card' || formData.type === 'debit_card') && (
                   <div className="space-y-4 border-t pt-4">
-                    <h3 className="font-semibold">Configuração de Parcelamento e Taxas</h3>
+                    <h3 className="font-semibold">Configuração de Taxas</h3>
                     
-                    <div className="grid grid-cols-3 gap-4">
+                    {formData.type === 'debit_card' ? (
                       <div className="space-y-2">
-                        <Label htmlFor="max_installments">Máximo de Parcelas</Label>
-                        <Input
-                          id="max_installments"
-                          type="number"
-                          min="1"
-                          max="24"
-                          value={formData.max_installments}
-                          onChange={(e) => setFormData({ ...formData, max_installments: parseInt(e.target.value) || 1 })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="interest_free">Parcelas Sem Juros</Label>
-                        <Input
-                          id="interest_free"
-                          type="number"
-                          min="0"
-                          max={formData.max_installments}
-                          value={formData.interest_free_installments}
-                          onChange={(e) => setFormData({ ...formData, interest_free_installments: parseInt(e.target.value) || 0 })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="fee_percentage">Taxa Geral (%)</Label>
+                        <Label htmlFor="fee_percentage">Taxa do Débito (%)</Label>
                         <Input
                           id="fee_percentage"
                           type="number"
@@ -307,47 +290,102 @@ export default function PaymentsManagement() {
                           value={formData.fee_percentage}
                           onChange={(e) => setFormData({ ...formData, fee_percentage: parseFloat(e.target.value) || 0 })}
                         />
-                      </div>
-                    </div>
-
-                    {formData.max_installments > 1 && (
-                      <div className="space-y-3">
-                        <Label>Taxa por Parcela (opcional)</Label>
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border rounded">
-                          {Array.from({ length: formData.max_installments }, (_, i) => i + 1).map((installment) => {
-                            const currentFee = formData.fee_per_installment.find(f => f.installment === installment);
-                            return (
-                              <div key={installment} className="flex items-center gap-2">
-                                <Label className="text-xs w-16">{installment}x:</Label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="% taxa"
-                                  className="h-8"
-                                  value={currentFee?.fee || ''}
-                                  onChange={(e) => updateInstallmentFee(installment, parseFloat(e.target.value) || 0)}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
                         <p className="text-xs text-muted-foreground">
-                          Configure taxas específicas por parcela. Deixe em branco para usar a taxa geral.
+                          Cartão de débito é sempre à vista (1x) com a taxa configurada
                         </p>
                       </div>
-                    )}
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="max_installments">Máximo de Parcelas</Label>
+                            <Input
+                              id="max_installments"
+                              type="number"
+                              min="1"
+                              max="24"
+                              value={formData.max_installments}
+                              onChange={(e) => setFormData({ ...formData, max_installments: parseInt(e.target.value) || 1 })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="interest_free">Parcelas Sem Juros</Label>
+                            <Input
+                              id="interest_free"
+                              type="number"
+                              min="0"
+                              max={formData.max_installments}
+                              value={formData.interest_free_installments}
+                              onChange={(e) => setFormData({ ...formData, interest_free_installments: parseInt(e.target.value) || 0 })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="fee_percentage">Taxa Geral (%)</Label>
+                            <Input
+                              id="fee_percentage"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={formData.fee_percentage}
+                              onChange={(e) => setFormData({ ...formData, fee_percentage: parseFloat(e.target.value) || 0 })}
+                            />
+                          </div>
+                        </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="can_transfer_fee">Permitir Repassar Taxa ao Cliente</Label>
-                        <p className="text-xs text-muted-foreground">Cliente pode optar por absorver as taxas</p>
-                      </div>
-                      <Switch
-                        id="can_transfer_fee"
-                        checked={formData.can_transfer_fee}
-                        onCheckedChange={(checked) => setFormData({ ...formData, can_transfer_fee: checked })}
-                      />
-                    </div>
+                        {formData.max_installments > 1 && (
+                          <div className="space-y-3">
+                            <Label>Taxa por Parcela (opcional)</Label>
+                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border rounded">
+                              {Array.from({ length: formData.max_installments }, (_, i) => i + 1).map((installment) => {
+                                const currentFee = formData.fee_per_installment.find(f => f.installment === installment);
+                                return (
+                                  <div key={installment} className="flex items-center gap-2">
+                                    <Label className="text-xs w-16">{installment}x:</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="% taxa"
+                                      className="h-8"
+                                      value={currentFee?.fee || ''}
+                                      onChange={(e) => updateInstallmentFee(installment, parseFloat(e.target.value) || 0)}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Configure taxas específicas por parcela. Deixe em branco para usar a taxa geral.
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-1">
+                            <Label htmlFor="can_transfer_fee">Permitir Repassar Taxa ao Cliente</Label>
+                            <p className="text-xs text-muted-foreground">Cliente pode optar por absorver as taxas</p>
+                          </div>
+                          <Switch
+                            id="can_transfer_fee"
+                            checked={formData.can_transfer_fee}
+                            onCheckedChange={(checked) => setFormData({ ...formData, can_transfer_fee: checked })}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between border-t pt-3">
+                          <div className="space-y-1">
+                            <Label htmlFor="allow_down_payment">Permitir Entrada + Parcelamento</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Cliente pode dar entrada e parcelar o restante no crédito
+                            </p>
+                          </div>
+                          <Switch
+                            id="allow_down_payment"
+                            checked={formData.allow_down_payment}
+                            onCheckedChange={(checked) => setFormData({ ...formData, allow_down_payment: checked })}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -413,13 +451,18 @@ export default function PaymentsManagement() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      {method.max_installments && method.max_installments > 1 ? (
+                      {method.type === 'debit_card' ? (
+                        <span className="text-xs">À vista (Débito)</span>
+                      ) : method.max_installments && method.max_installments > 1 ? (
                         <div className="text-xs">
                           <span>Até {method.max_installments}x</span>
                           {method.interest_free_installments > 0 && (
                             <span className="block text-muted-foreground">
                               {method.interest_free_installments}x sem juros
                             </span>
+                          )}
+                          {method.allow_down_payment && (
+                            <span className="block text-primary">+ Entrada</span>
                           )}
                         </div>
                       ) : (

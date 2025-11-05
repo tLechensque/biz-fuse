@@ -199,6 +199,7 @@ export type Database = {
       }
       payment_methods: {
         Row: {
+          allow_down_payment: boolean | null
           created_at: string | null
           description: string | null
           fee_per_installment: Json | null
@@ -214,6 +215,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          allow_down_payment?: boolean | null
           created_at?: string | null
           description?: string | null
           fee_per_installment?: Json | null
@@ -229,6 +231,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          allow_down_payment?: boolean | null
           created_at?: string | null
           description?: string | null
           fee_per_installment?: Json | null
