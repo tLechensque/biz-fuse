@@ -12,22 +12,34 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2, Loader2, CreditCard } from 'lucide-react';
 import { RoleGuard } from '@/components/auth/RoleGuard';
+
+interface CardBrandFee {
+  installment: number;
+  fee: number;
+}
+
+interface CardBrandConfig {
+  debit_fee: number;
+  credit_max_installments: number;
+  credit_interest_free: number;
+  credit_fees: CardBrandFee[];
+}
 
 interface PaymentMethod {
   id: string;
   name: string;
   description: string | null;
-  type: string;
+  provider_type: string;
+  provider_name: string | null;
+  card_brands_config: any;
   is_active: boolean;
-  max_installments: number | null;
-  interest_free_installments: number | null;
-  fee_percentage: number | null;
-  fee_per_installment: any;
-  allow_down_payment: boolean | null;
   created_at: string;
 }
+
+const CARD_BRANDS = ['visa', 'mastercard', 'elo'] as const;
 
 export default function PaymentsManagement() {
   const { profile } = useProfile();
@@ -35,17 +47,18 @@ export default function PaymentsManagement() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    type: 'other' as 'credit_card' | 'debit_card' | 'pix' | 'boleto' | 'other',
+    provider_type: 'maquininha' as 'maquininha' | 'link_pagamento' | 'pix' | 'boleto' | 'other',
+    provider_name: '',
     is_active: true,
-    max_installments: 1,
-    interest_free_installments: 0,
-    fee_percentage: 0,
-    can_transfer_fee: false,
-    allow_down_payment: false,
-    fee_per_installment: [] as { installment: number; fee: number }[],
+    card_brands_config: {
+      visa: { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] as CardBrandFee[] },
+      mastercard: { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] as CardBrandFee[] },
+      elo: { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] as CardBrandFee[] },
+    }
   });
 
   const { data: paymentMethods = [], isLoading } = useQuery({
@@ -64,10 +77,10 @@ export default function PaymentsManagement() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
+    mutationFn: async (data: any) => {
       const { error } = await supabase
         .from('payment_methods')
-        .insert({ ...data, organization_id: profile?.organization_id });
+        .insert([{ ...data, organization_id: profile?.organization_id }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -85,10 +98,10 @@ export default function PaymentsManagement() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
       const { error } = await supabase
         .from('payment_methods')
-        .update(data)
+        .update(data as any)
         .eq('id', id);
       if (error) throw error;
     },
@@ -140,17 +153,18 @@ export default function PaymentsManagement() {
 
   const handleEdit = (method: PaymentMethod) => {
     setEditingMethod(method);
+    const brandsConfig = method.card_brands_config || {};
     setFormData({
       name: method.name,
       description: method.description || '',
-      type: method.type as any,
+      provider_type: (method.provider_type as any) || 'other',
+      provider_name: method.provider_name || '',
       is_active: method.is_active,
-      max_installments: method.max_installments || 1,
-      interest_free_installments: method.interest_free_installments || 0,
-      fee_percentage: method.fee_percentage || 0,
-      can_transfer_fee: false,
-      allow_down_payment: method.allow_down_payment || false,
-      fee_per_installment: method.fee_per_installment || [],
+      card_brands_config: {
+        visa: brandsConfig.visa || { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] },
+        mastercard: brandsConfig.mastercard || { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] },
+        elo: brandsConfig.elo || { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] },
+      }
     });
     setDialogOpen(true);
   };
@@ -160,14 +174,14 @@ export default function PaymentsManagement() {
     setFormData({ 
       name: '', 
       description: '', 
-      type: 'other',
+      provider_type: 'maquininha',
+      provider_name: '',
       is_active: true,
-      max_installments: 1,
-      interest_free_installments: 0,
-      fee_percentage: 0,
-      can_transfer_fee: false,
-      allow_down_payment: false,
-      fee_per_installment: [],
+      card_brands_config: {
+        visa: { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] },
+        mastercard: { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] },
+        elo: { debit_fee: 0, credit_max_installments: 12, credit_interest_free: 0, credit_fees: [] },
+      }
     });
     setDialogOpen(true);
   };
@@ -175,29 +189,28 @@ export default function PaymentsManagement() {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingMethod(null);
-    setFormData({ 
-      name: '', 
-      description: '', 
-      type: 'other',
-      is_active: true,
-      max_installments: 1,
-      interest_free_installments: 0,
-      fee_percentage: 0,
-      can_transfer_fee: false,
-      allow_down_payment: false,
-      fee_per_installment: [],
-    });
   };
 
-  const updateInstallmentFee = (installment: number, fee: number) => {
-    const fees = [...formData.fee_per_installment];
+  const updateBrandFee = (brand: keyof typeof formData.card_brands_config, installment: number, fee: number) => {
+    const brandConfig = { ...formData.card_brands_config[brand] };
+    const fees = [...(brandConfig.credit_fees || [])];
     const index = fees.findIndex(f => f.installment === installment);
+    
     if (index >= 0) {
       fees[index] = { installment, fee };
     } else {
       fees.push({ installment, fee });
     }
-    setFormData({ ...formData, fee_per_installment: fees.sort((a, b) => a.installment - b.installment) });
+    
+    brandConfig.credit_fees = fees.sort((a, b) => a.installment - b.installment);
+    
+    setFormData({
+      ...formData,
+      card_brands_config: {
+        ...formData.card_brands_config,
+        [brand]: brandConfig
+      }
+    });
   };
 
   if (isLoading) {
@@ -215,7 +228,7 @@ export default function PaymentsManagement() {
           <div>
             <h1 className="text-3xl font-bold">Formas de Pagamento</h1>
             <p className="text-muted-foreground mt-2">
-              Gerencie as formas de pagamento disponíveis para propostas
+              Gerencie maquininhas, links de pagamento e taxas por bandeira
             </p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -225,38 +238,38 @@ export default function PaymentsManagement() {
                 Nova Forma
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
                   {editingMethod ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}
                 </DialogTitle>
                 <DialogDescription>
-                  Configure taxas, parcelamento e condições de pagamento
+                  Configure maquininha, bandeiras e taxas de pagamento
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nome</Label>
+                    <Label htmlFor="name">Nome/Identificação *</Label>
                     <Input
                       id="name"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Ex: PIX, Cartão de Crédito"
+                      placeholder="Ex: Stone Principal, PagSeguro Link"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="type">Tipo</Label>
+                    <Label htmlFor="provider_type">Tipo</Label>
                     <select
-                      id="type"
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                      id="provider_type"
+                      value={formData.provider_type}
+                      onChange={(e) => setFormData({ ...formData, provider_type: e.target.value as any })}
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                      <option value="credit_card">Cartão de Crédito</option>
-                      <option value="debit_card">Cartão de Débito</option>
+                      <option value="maquininha">Maquininha/Adquirente</option>
+                      <option value="link_pagamento">Link de Pagamento</option>
                       <option value="pix">PIX</option>
                       <option value="boleto">Boleto</option>
                       <option value="other">Outro</option>
@@ -264,128 +277,128 @@ export default function PaymentsManagement() {
                   </div>
                 </div>
 
+                {(formData.provider_type === 'maquininha' || formData.provider_type === 'link_pagamento') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="provider_name">Nome do Provedor</Label>
+                    <Input
+                      id="provider_name"
+                      value={formData.provider_name}
+                      onChange={(e) => setFormData({ ...formData, provider_name: e.target.value })}
+                      placeholder="Ex: Stone, PagSeguro, Mercado Pago, Cielo"
+                    />
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="description">Descrição</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Detalhes sobre a forma de pagamento"
+                    placeholder="Informações adicionais"
                     rows={2}
                   />
                 </div>
 
-                {(formData.type === 'credit_card' || formData.type === 'debit_card') && (
+                {(formData.provider_type === 'maquininha' || formData.provider_type === 'link_pagamento') && (
                   <div className="space-y-4 border-t pt-4">
-                    <h3 className="font-semibold">Configuração de Taxas</h3>
+                    <h3 className="font-semibold">Configuração por Bandeira</h3>
                     
-                    {formData.type === 'debit_card' ? (
-                      <div className="space-y-2">
-                        <Label htmlFor="fee_percentage">Taxa do Débito (%)</Label>
-                        <Input
-                          id="fee_percentage"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={formData.fee_percentage}
-                          onChange={(e) => setFormData({ ...formData, fee_percentage: parseFloat(e.target.value) || 0 })}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Cartão de débito é sempre à vista (1x) com a taxa configurada
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="max_installments">Máximo de Parcelas</Label>
-                            <Input
-                              id="max_installments"
-                              type="number"
-                              min="1"
-                              max="24"
-                              value={formData.max_installments}
-                              onChange={(e) => setFormData({ ...formData, max_installments: parseInt(e.target.value) || 1 })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="interest_free">Parcelas Sem Juros</Label>
-                            <Input
-                              id="interest_free"
-                              type="number"
-                              min="0"
-                              max={formData.max_installments}
-                              value={formData.interest_free_installments}
-                              onChange={(e) => setFormData({ ...formData, interest_free_installments: parseInt(e.target.value) || 0 })}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="fee_percentage">Taxa Geral (%)</Label>
-                            <Input
-                              id="fee_percentage"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={formData.fee_percentage}
-                              onChange={(e) => setFormData({ ...formData, fee_percentage: parseFloat(e.target.value) || 0 })}
-                            />
-                          </div>
-                        </div>
-
-                        {formData.max_installments > 1 && (
-                          <div className="space-y-3">
-                            <Label>Taxa por Parcela (opcional)</Label>
-                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border rounded">
-                              {Array.from({ length: formData.max_installments }, (_, i) => i + 1).map((installment) => {
-                                const currentFee = formData.fee_per_installment.find(f => f.installment === installment);
-                                return (
-                                  <div key={installment} className="flex items-center gap-2">
-                                    <Label className="text-xs w-16">{installment}x:</Label>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      placeholder="% taxa"
-                                      className="h-8"
-                                      value={currentFee?.fee || ''}
-                                      onChange={(e) => updateInstallmentFee(installment, parseFloat(e.target.value) || 0)}
-                                    />
-                                  </div>
-                                );
-                              })}
+                    <Tabs defaultValue="visa">
+                      <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="visa">Visa</TabsTrigger>
+                        <TabsTrigger value="mastercard">Mastercard</TabsTrigger>
+                        <TabsTrigger value="elo">Elo</TabsTrigger>
+                      </TabsList>
+                      
+                      {CARD_BRANDS.map(brand => (
+                        <TabsContent key={brand} value={brand} className="space-y-4">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label>Taxa Débito (%)</Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.card_brands_config[brand].debit_fee}
+                                onChange={(e) => setFormData({
+                                  ...formData,
+                                  card_brands_config: {
+                                    ...formData.card_brands_config,
+                                    [brand]: {
+                                      ...formData.card_brands_config[brand],
+                                      debit_fee: parseFloat(e.target.value) || 0
+                                    }
+                                  }
+                                })}
+                              />
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              Configure taxas específicas por parcela. Deixe em branco para usar a taxa geral.
-                            </p>
+                            <div className="space-y-2">
+                              <Label>Máx Parcelas Crédito</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="24"
+                                value={formData.card_brands_config[brand].credit_max_installments}
+                                onChange={(e) => setFormData({
+                                  ...formData,
+                                  card_brands_config: {
+                                    ...formData.card_brands_config,
+                                    [brand]: {
+                                      ...formData.card_brands_config[brand],
+                                      credit_max_installments: parseInt(e.target.value) || 1
+                                    }
+                                  }
+                                })}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Parcelas Sem Juros</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                max={formData.card_brands_config[brand].credit_max_installments}
+                                value={formData.card_brands_config[brand].credit_interest_free}
+                                onChange={(e) => setFormData({
+                                  ...formData,
+                                  card_brands_config: {
+                                    ...formData.card_brands_config,
+                                    [brand]: {
+                                      ...formData.card_brands_config[brand],
+                                      credit_interest_free: parseInt(e.target.value) || 0
+                                    }
+                                  }
+                                })}
+                              />
+                            </div>
                           </div>
-                        )}
 
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <Label htmlFor="can_transfer_fee">Permitir Repassar Taxa ao Cliente</Label>
-                            <p className="text-xs text-muted-foreground">Cliente pode optar por absorver as taxas</p>
-                          </div>
-                          <Switch
-                            id="can_transfer_fee"
-                            checked={formData.can_transfer_fee}
-                            onCheckedChange={(checked) => setFormData({ ...formData, can_transfer_fee: checked })}
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between border-t pt-3">
-                          <div className="space-y-1">
-                            <Label htmlFor="allow_down_payment">Permitir Entrada + Parcelamento</Label>
-                            <p className="text-xs text-muted-foreground">
-                              Cliente pode dar entrada e parcelar o restante no crédito
-                            </p>
-                          </div>
-                          <Switch
-                            id="allow_down_payment"
-                            checked={formData.allow_down_payment}
-                            onCheckedChange={(checked) => setFormData({ ...formData, allow_down_payment: checked })}
-                          />
-                        </div>
-                      </>
-                    )}
+                          {formData.card_brands_config[brand].credit_max_installments > 1 && (
+                            <div className="space-y-3">
+                              <Label>Taxas por Parcela (Crédito %)</Label>
+                              <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto p-2 border rounded">
+                                {Array.from({ length: formData.card_brands_config[brand].credit_max_installments }, (_, i) => i + 1).map((installment) => {
+                                  const currentFee = formData.card_brands_config[brand].credit_fees?.find((f: CardBrandFee) => f.installment === installment);
+                                  return (
+                                    <div key={installment} className="flex items-center gap-2">
+                                      <Label className="text-xs w-12">{installment}x:</Label>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="%"
+                                        className="h-8"
+                                        value={currentFee?.fee || ''}
+                                        onChange={(e) => updateBrandFee(brand, installment, parseFloat(e.target.value) || 0)}
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </TabsContent>
+                      ))}
+                    </Tabs>
                   </div>
                 )}
 
@@ -425,8 +438,8 @@ export default function PaymentsManagement() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Parcelas</TableHead>
-                  <TableHead>Taxa</TableHead>
+                  <TableHead>Provedor</TableHead>
+                  <TableHead>Bandeiras</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -447,33 +460,23 @@ export default function PaymentsManagement() {
                     </TableCell>
                     <TableCell>
                       <span className="text-xs capitalize">
-                        {method.type.replace('_', ' ')}
+                        {method.provider_type?.replace('_', ' ')}
                       </span>
                     </TableCell>
                     <TableCell>
-                      {method.type === 'debit_card' ? (
-                        <span className="text-xs">À vista (Débito)</span>
-                      ) : method.max_installments && method.max_installments > 1 ? (
-                        <div className="text-xs">
-                          <span>Até {method.max_installments}x</span>
-                          {method.interest_free_installments > 0 && (
-                            <span className="block text-muted-foreground">
-                              {method.interest_free_installments}x sem juros
-                            </span>
-                          )}
-                          {method.allow_down_payment && (
-                            <span className="block text-primary">+ Entrada</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">À vista</span>
-                      )}
+                      <span className="text-xs">{method.provider_name || '-'}</span>
                     </TableCell>
                     <TableCell>
-                      {method.fee_percentage > 0 ? (
-                        <span className="text-xs">{method.fee_percentage}%</span>
+                      {method.card_brands_config && Object.keys(method.card_brands_config).length > 0 ? (
+                        <div className="flex gap-1">
+                          {Object.keys(method.card_brands_config).map(brand => (
+                            <span key={brand} className="text-xs px-2 py-1 bg-primary/10 rounded capitalize">
+                              {brand}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">Sem taxa</span>
+                        <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell>

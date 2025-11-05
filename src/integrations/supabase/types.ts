@@ -200,6 +200,7 @@ export type Database = {
       payment_methods: {
         Row: {
           allow_down_payment: boolean | null
+          card_brands_config: Json | null
           created_at: string | null
           description: string | null
           fee_per_installment: Json | null
@@ -211,11 +212,14 @@ export type Database = {
           max_installments: number | null
           name: string
           organization_id: string
+          provider_name: string | null
+          provider_type: string | null
           type: string | null
           updated_at: string | null
         }
         Insert: {
           allow_down_payment?: boolean | null
+          card_brands_config?: Json | null
           created_at?: string | null
           description?: string | null
           fee_per_installment?: Json | null
@@ -227,11 +231,14 @@ export type Database = {
           max_installments?: number | null
           name: string
           organization_id: string
+          provider_name?: string | null
+          provider_type?: string | null
           type?: string | null
           updated_at?: string | null
         }
         Update: {
           allow_down_payment?: boolean | null
+          card_brands_config?: Json | null
           created_at?: string | null
           description?: string | null
           fee_per_installment?: Json | null
@@ -243,6 +250,8 @@ export type Database = {
           max_installments?: number | null
           name?: string
           organization_id?: string
+          provider_name?: string | null
+          provider_type?: string | null
           type?: string | null
           updated_at?: string | null
         }
