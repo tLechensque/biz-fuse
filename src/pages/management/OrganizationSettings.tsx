@@ -9,13 +9,31 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Building2, Save } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Loader2, Building2, Save, Plus, Pencil, Trash2, Phone } from 'lucide-react';
 import { RoleGuard } from '@/components/auth/RoleGuard';
+
+interface Organization {
+  id: string;
+  name: string;
+  razao_social: string | null;
+  cnpj: string | null;
+  endereco: string | null;
+  whatsapp: string | null;
+  telefone: string | null;
+  email: string | null;
+  tipo: 'matriz' | 'filial' | 'independente';
+  created_at: string;
+}
 
 export default function OrganizationSettings() {
   const { profile } = useProfile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
+  const [additionalPhone, setAdditionalPhone] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     razao_social: '',
@@ -24,49 +42,56 @@ export default function OrganizationSettings() {
     whatsapp: '',
     telefone: '',
     email: '',
-    tipo: 'matriz' as 'matriz' | 'filial' | 'independente',
-    settings: {} as any,
+    tipo: 'independente' as 'matriz' | 'filial' | 'independente',
   });
 
-  const { isLoading } = useQuery({
-    queryKey: ['organization', profile?.organization_id],
+  const { data: organizations = [], isLoading } = useQuery({
+    queryKey: ['organizations', profile?.organization_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('organizations')
         .select('*')
-        .eq('id', profile?.organization_id!)
-        .single();
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
-      
-      setFormData({
-        name: data.name,
-        razao_social: data.razao_social || '',
-        cnpj: data.cnpj || '',
-        endereco: data.endereco || '',
-        whatsapp: data.whatsapp || '',
-        telefone: data.telefone || '',
-        email: data.email || '',
-        tipo: (data.tipo || 'matriz') as 'matriz' | 'filial' | 'independente',
-        settings: data.settings || {},
-      });
-      
-      return data;
+      return data as Organization[];
     },
     enabled: !!profile?.organization_id,
   });
 
-  const updateMutation = useMutation({
+  const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const { error } = await supabase
         .from('organizations')
-        .update(data)
-        .eq('id', profile?.organization_id!);
+        .insert(data);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organization'] });
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      toast({ title: 'Organização criada com sucesso' });
+      handleCloseDialog();
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao criar organização',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      const { error } = await supabase
+        .from('organizations')
+        .update(data)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
       toast({ title: 'Organização atualizada com sucesso' });
+      handleCloseDialog();
     },
     onError: (error: any) => {
       toast({
@@ -77,9 +102,74 @@ export default function OrganizationSettings() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('organizations')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      toast({ title: 'Organização excluída' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao excluir',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateMutation.mutate(formData);
+    if (!formData.name.trim()) return;
+
+    if (editingOrg) {
+      updateMutation.mutate({ id: editingOrg.id, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
+  };
+
+  const handleEdit = (org: Organization) => {
+    setEditingOrg(org);
+    setFormData({
+      name: org.name,
+      razao_social: org.razao_social || '',
+      cnpj: org.cnpj || '',
+      endereco: org.endereco || '',
+      whatsapp: org.whatsapp || '',
+      telefone: org.telefone || '',
+      email: org.email || '',
+      tipo: org.tipo,
+    });
+    setAdditionalPhone(!!org.telefone);
+    setDialogOpen(true);
+  };
+
+  const handleNewOrg = () => {
+    setEditingOrg(null);
+    setFormData({
+      name: '',
+      razao_social: '',
+      cnpj: '',
+      endereco: '',
+      whatsapp: '',
+      telefone: '',
+      email: '',
+      tipo: 'independente',
+    });
+    setAdditionalPhone(false);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingOrg(null);
+    setAdditionalPhone(false);
   };
 
   if (isLoading) {
@@ -93,190 +183,277 @@ export default function OrganizationSettings() {
   return (
     <RoleGuard requireAdmin>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Configurações da Organização</h1>
-          <p className="text-muted-foreground mt-2">
-            Gerencie as informações e configurações da sua organização
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Organizações</h1>
+            <p className="text-muted-foreground mt-2">
+              Gerencie suas empresas, matriz, filiais e independentes
+            </p>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={handleNewOrg}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Organização
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  {editingOrg ? 'Editar Organização' : 'Nova Organização'}
+                </DialogTitle>
+                <DialogDescription>
+                  Configure os dados da empresa
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome Fantasia *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Nome comercial"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo">Tipo de Organização</Label>
+                    <Select
+                      value={formData.tipo}
+                      onValueChange={(value: any) => setFormData({ ...formData, tipo: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="matriz">Matriz</SelectItem>
+                        <SelectItem value="filial">Filial</SelectItem>
+                        <SelectItem value="independente">Independente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="razao_social">Razão Social</Label>
+                    <Input
+                      id="razao_social"
+                      value={formData.razao_social}
+                      onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
+                      placeholder="Razão social completa"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cnpj">CNPJ</Label>
+                    <InputMask
+                      mask="99.999.999/9999-99"
+                      value={formData.cnpj}
+                      onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                    >
+                      {(inputProps: any) => (
+                        <Input
+                          {...inputProps}
+                          id="cnpj"
+                          placeholder="00.000.000/0000-00"
+                        />
+                      )}
+                    </InputMask>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mail</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="contato@empresa.com"
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="endereco">Endereço</Label>
+                    <Input
+                      id="endereco"
+                      value={formData.endereco}
+                      onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                      placeholder="Endereço completo"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="whatsapp">WhatsApp *</Label>
+                    <InputMask
+                      mask="(99) 99999-9999"
+                      value={formData.whatsapp}
+                      onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                    >
+                      {(inputProps: any) => (
+                        <Input
+                          {...inputProps}
+                          id="whatsapp"
+                          placeholder="(00) 00000-0000"
+                          required
+                        />
+                      )}
+                    </InputMask>
+                  </div>
+
+                  <div className="space-y-2">
+                    {!additionalPhone ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full mt-8"
+                        onClick={() => setAdditionalPhone(true)}
+                      >
+                        <Phone className="h-4 w-4 mr-2" />
+                        Adicionar Telefone Adicional
+                      </Button>
+                    ) : (
+                      <>
+                        <Label htmlFor="telefone">Telefone Adicional</Label>
+                        <InputMask
+                          mask="(99) 99999-9999"
+                          value={formData.telefone}
+                          onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                        >
+                          {(inputProps: any) => (
+                            <Input
+                              {...inputProps}
+                              id="telefone"
+                              placeholder="(00) 00000-0000"
+                            />
+                          )}
+                        </InputMask>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end pt-4 border-t">
+                  <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit">
+                    <Save className="h-4 w-4 mr-2" />
+                    {editingOrg ? 'Atualizar' : 'Criar'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {organizations.map((org) => (
+            <Card key={org.id} className="relative">
+              <CardHeader>
+                <CardTitle className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    <span>{org.name}</span>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded capitalize">
+                    {org.tipo}
+                  </span>
+                </CardTitle>
+                <CardDescription>
+                  {org.razao_social || 'Razão social não informada'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="space-y-2 text-sm">
+                  {org.cnpj && (
+                    <div>
+                      <span className="text-muted-foreground">CNPJ: </span>
+                      <span className="font-medium">{org.cnpj}</span>
+                    </div>
+                  )}
+                  {org.whatsapp && (
+                    <div>
+                      <span className="text-muted-foreground">WhatsApp: </span>
+                      <span className="font-medium">{org.whatsapp}</span>
+                    </div>
+                  )}
+                  {org.telefone && (
+                    <div>
+                      <span className="text-muted-foreground">Tel. Adicional: </span>
+                      <span className="font-medium">{org.telefone}</span>
+                    </div>
+                  )}
+                  {org.email && (
+                    <div>
+                      <span className="text-muted-foreground">E-mail: </span>
+                      <span className="font-medium">{org.email}</span>
+                    </div>
+                  )}
+                  {org.endereco && (
+                    <div>
+                      <span className="text-muted-foreground">Endereço: </span>
+                      <span className="font-medium">{org.endereco}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-3 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleEdit(org)}
+                  >
+                    <Pencil className="h-3 w-3 mr-1" />
+                    Editar
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Trash2 className="h-3 w-3 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir Organização</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir "{org.name}"? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteMutation.mutate(org.id)}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {organizations.length === 0 && !isLoading && (
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                Informações Gerais
-              </CardTitle>
-              <CardDescription>
-                Dados básicos da organização
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome Fantasia</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Nome comercial"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="razao_social">Razão Social</Label>
-                  <Input
-                    id="razao_social"
-                    value={formData.razao_social}
-                    onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
-                    placeholder="Razão social completa"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <InputMask
-                    mask="99.999.999/9999-99"
-                    value={formData.cnpj}
-                    onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                  >
-                    {(inputProps: any) => (
-                      <Input
-                        {...inputProps}
-                        id="cnpj"
-                        placeholder="00.000.000/0000-00"
-                      />
-                    )}
-                  </InputMask>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="tipo">Tipo de Organização</Label>
-                  <Select
-                    value={formData.tipo}
-                    onValueChange={(value: any) => setFormData({ ...formData, tipo: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="matriz">Matriz</SelectItem>
-                      <SelectItem value="filial">Filial</SelectItem>
-                      <SelectItem value="independente">Independente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="endereco">Endereço</Label>
-                  <Input
-                    id="endereco"
-                    value={formData.endereco}
-                    onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                    placeholder="Endereço completo"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp">WhatsApp (Principal)</Label>
-                  <InputMask
-                    mask="(99) 99999-9999"
-                    value={formData.whatsapp}
-                    onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                  >
-                    {(inputProps: any) => (
-                      <Input
-                        {...inputProps}
-                        id="whatsapp"
-                        placeholder="(00) 00000-0000"
-                      />
-                    )}
-                  </InputMask>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone Adicional (Opcional)</Label>
-                  <InputMask
-                    mask="(99) 9999-9999"
-                    value={formData.telefone}
-                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                  >
-                    {(inputProps: any) => (
-                      <Input
-                        {...inputProps}
-                        id="telefone"
-                        placeholder="(00) 0000-0000"
-                      />
-                    )}
-                  </InputMask>
-                </div>
-
-                <div className="col-span-2 space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="contato@empresa.com"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-4 border-t">
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar Alterações
-                </Button>
-              </div>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium">Nenhuma organização cadastrada</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Comece criando sua primeira organização
+              </p>
+              <Button onClick={handleNewOrg}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Organização
+              </Button>
             </CardContent>
           </Card>
-        </form>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumo da Organização</CardTitle>
-            <CardDescription>
-              Informações principais da empresa
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start justify-between p-4 border rounded-lg bg-muted/50">
-                <div className="space-y-3 flex-1">
-                  <div>
-                    <h3 className="text-2xl font-bold">{formData.name || 'Nome da Empresa'}</h3>
-                    <p className="text-sm text-muted-foreground">{formData.razao_social || 'Razão Social não informada'}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">CNPJ:</span>
-                      <p className="font-medium">{formData.cnpj || 'Não informado'}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Tipo:</span>
-                      <p className="font-medium capitalize">{formData.tipo}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">WhatsApp:</span>
-                      <p className="font-medium">{formData.whatsapp || 'Não informado'}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">E-mail:</span>
-                      <p className="font-medium">{formData.email || 'Não informado'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                <span>ID da Organização: </span>
-                <span className="font-mono">{profile?.organization_id}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        )}
       </div>
     </RoleGuard>
   );
