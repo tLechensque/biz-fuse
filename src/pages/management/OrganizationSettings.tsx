@@ -21,8 +21,8 @@ export default function OrganizationSettings() {
     razao_social: '',
     cnpj: '',
     endereco: '',
-    telefone: '',
     whatsapp: '',
+    telefone: '',
     email: '',
     tipo: 'matriz' as 'matriz' | 'filial' | 'independente',
     settings: {} as any,
@@ -44,8 +44,8 @@ export default function OrganizationSettings() {
         razao_social: data.razao_social || '',
         cnpj: data.cnpj || '',
         endereco: data.endereco || '',
-        telefone: data.telefone || '',
         whatsapp: data.whatsapp || '',
+        telefone: data.telefone || '',
         email: data.email || '',
         tipo: (data.tipo || 'matriz') as 'matriz' | 'filial' | 'independente',
         settings: data.settings || {},
@@ -179,24 +179,7 @@ export default function OrganizationSettings() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="telefone">Telefone</Label>
-                  <InputMask
-                    mask="(99) 9999-9999"
-                    value={formData.telefone}
-                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                  >
-                    {(inputProps: any) => (
-                      <Input
-                        {...inputProps}
-                        id="telefone"
-                        placeholder="(00) 0000-0000"
-                      />
-                    )}
-                  </InputMask>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="whatsapp">WhatsApp</Label>
+                  <Label htmlFor="whatsapp">WhatsApp (Principal)</Label>
                   <InputMask
                     mask="(99) 99999-9999"
                     value={formData.whatsapp}
@@ -207,6 +190,23 @@ export default function OrganizationSettings() {
                         {...inputProps}
                         id="whatsapp"
                         placeholder="(00) 00000-0000"
+                      />
+                    )}
+                  </InputMask>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="telefone">Telefone Adicional (Opcional)</Label>
+                  <InputMask
+                    mask="(99) 9999-9999"
+                    value={formData.telefone}
+                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                  >
+                    {(inputProps: any) => (
+                      <Input
+                        {...inputProps}
+                        id="telefone"
+                        placeholder="(00) 0000-0000"
                       />
                     )}
                   </InputMask>
@@ -237,15 +237,41 @@ export default function OrganizationSettings() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Informações do Sistema</CardTitle>
+            <CardTitle>Resumo da Organização</CardTitle>
             <CardDescription>
-              Dados sobre a organização no sistema
+              Informações principais da empresa
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">ID da Organização:</span>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between p-4 border rounded-lg bg-muted/50">
+                <div className="space-y-3 flex-1">
+                  <div>
+                    <h3 className="text-2xl font-bold">{formData.name || 'Nome da Empresa'}</h3>
+                    <p className="text-sm text-muted-foreground">{formData.razao_social || 'Razão Social não informada'}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">CNPJ:</span>
+                      <p className="font-medium">{formData.cnpj || 'Não informado'}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Tipo:</span>
+                      <p className="font-medium capitalize">{formData.tipo}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">WhatsApp:</span>
+                      <p className="font-medium">{formData.whatsapp || 'Não informado'}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">E-mail:</span>
+                      <p className="font-medium">{formData.email || 'Não informado'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <span>ID da Organização: </span>
                 <span className="font-mono">{profile?.organization_id}</span>
               </div>
             </div>

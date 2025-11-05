@@ -19,7 +19,12 @@ interface PaymentMethod {
   id: string;
   name: string;
   description: string | null;
+  type: string;
   is_active: boolean;
+  max_installments: number | null;
+  interest_free_installments: number | null;
+  fee_percentage: number | null;
+  fee_per_installment: any;
   created_at: string;
 }
 
@@ -32,7 +37,13 @@ export default function PaymentsManagement() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    type: 'other' as 'credit_card' | 'debit_card' | 'pix' | 'boleto' | 'other',
     is_active: true,
+    max_installments: 1,
+    interest_free_installments: 0,
+    fee_percentage: 0,
+    can_transfer_fee: false,
+    fee_per_installment: [] as { installment: number; fee: number }[],
   });
 
   const { data: paymentMethods = [], isLoading } = useQuery({
@@ -130,21 +141,58 @@ export default function PaymentsManagement() {
     setFormData({
       name: method.name,
       description: method.description || '',
+      type: method.type as any,
       is_active: method.is_active,
+      max_installments: method.max_installments || 1,
+      interest_free_installments: method.interest_free_installments || 0,
+      fee_percentage: method.fee_percentage || 0,
+      can_transfer_fee: false,
+      fee_per_installment: method.fee_per_installment || [],
     });
     setDialogOpen(true);
   };
 
   const handleNewMethod = () => {
     setEditingMethod(null);
-    setFormData({ name: '', description: '', is_active: true });
+    setFormData({ 
+      name: '', 
+      description: '', 
+      type: 'other',
+      is_active: true,
+      max_installments: 1,
+      interest_free_installments: 0,
+      fee_percentage: 0,
+      can_transfer_fee: false,
+      fee_per_installment: [],
+    });
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingMethod(null);
-    setFormData({ name: '', description: '', is_active: true });
+    setFormData({ 
+      name: '', 
+      description: '', 
+      type: 'other',
+      is_active: true,
+      max_installments: 1,
+      interest_free_installments: 0,
+      fee_percentage: 0,
+      can_transfer_fee: false,
+      fee_per_installment: [],
+    });
+  };
+
+  const updateInstallmentFee = (installment: number, fee: number) => {
+    const fees = [...formData.fee_per_installment];
+    const index = fees.findIndex(f => f.installment === installment);
+    if (index >= 0) {
+      fees[index] = { installment, fee };
+    } else {
+      fees.push({ installment, fee });
+    }
+    setFormData({ ...formData, fee_per_installment: fees.sort((a, b) => a.installment - b.installment) });
   };
 
   if (isLoading) {
@@ -172,29 +220,45 @@ export default function PaymentsManagement() {
                 Nova Forma
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <CreditCard className="h-5 w-5" />
                   {editingMethod ? 'Editar Forma de Pagamento' : 'Nova Forma de Pagamento'}
                 </DialogTitle>
                 <DialogDescription>
-                  {editingMethod 
-                    ? 'Altere os dados da forma de pagamento' 
-                    : 'Adicione uma nova forma de pagamento'}
+                  Configure taxas, parcelamento e condições de pagamento
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: PIX, Cartão de Crédito, Boleto"
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Nome</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Ex: PIX, Cartão de Crédito"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="type">Tipo</Label>
+                    <select
+                      id="type"
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="credit_card">Cartão de Crédito</option>
+                      <option value="debit_card">Cartão de Débito</option>
+                      <option value="pix">PIX</option>
+                      <option value="boleto">Boleto</option>
+                      <option value="other">Outro</option>
+                    </select>
+                  </div>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="description">Descrição</Label>
                   <Textarea
@@ -202,24 +266,108 @@ export default function PaymentsManagement() {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Detalhes sobre a forma de pagamento"
-                    rows={3}
+                    rows={2}
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="is_active">Ativo</Label>
-                  <Switch
-                    id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                  />
-                </div>
-                <div className="flex gap-2 justify-end pt-4">
-                  <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    {editingMethod ? 'Atualizar' : 'Criar'}
-                  </Button>
+
+                {(formData.type === 'credit_card' || formData.type === 'debit_card') && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h3 className="font-semibold">Configuração de Parcelamento e Taxas</h3>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="max_installments">Máximo de Parcelas</Label>
+                        <Input
+                          id="max_installments"
+                          type="number"
+                          min="1"
+                          max="24"
+                          value={formData.max_installments}
+                          onChange={(e) => setFormData({ ...formData, max_installments: parseInt(e.target.value) || 1 })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="interest_free">Parcelas Sem Juros</Label>
+                        <Input
+                          id="interest_free"
+                          type="number"
+                          min="0"
+                          max={formData.max_installments}
+                          value={formData.interest_free_installments}
+                          onChange={(e) => setFormData({ ...formData, interest_free_installments: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="fee_percentage">Taxa Geral (%)</Label>
+                        <Input
+                          id="fee_percentage"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formData.fee_percentage}
+                          onChange={(e) => setFormData({ ...formData, fee_percentage: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+
+                    {formData.max_installments > 1 && (
+                      <div className="space-y-3">
+                        <Label>Taxa por Parcela (opcional)</Label>
+                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border rounded">
+                          {Array.from({ length: formData.max_installments }, (_, i) => i + 1).map((installment) => {
+                            const currentFee = formData.fee_per_installment.find(f => f.installment === installment);
+                            return (
+                              <div key={installment} className="flex items-center gap-2">
+                                <Label className="text-xs w-16">{installment}x:</Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="% taxa"
+                                  className="h-8"
+                                  value={currentFee?.fee || ''}
+                                  onChange={(e) => updateInstallmentFee(installment, parseFloat(e.target.value) || 0)}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Configure taxas específicas por parcela. Deixe em branco para usar a taxa geral.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Label htmlFor="can_transfer_fee">Permitir Repassar Taxa ao Cliente</Label>
+                        <p className="text-xs text-muted-foreground">Cliente pode optar por absorver as taxas</p>
+                      </div>
+                      <Switch
+                        id="can_transfer_fee"
+                        checked={formData.can_transfer_fee}
+                        onCheckedChange={(checked) => setFormData({ ...formData, can_transfer_fee: checked })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="is_active"
+                      checked={formData.is_active}
+                      onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                    />
+                    <Label htmlFor="is_active">Ativo</Label>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit">
+                      {editingMethod ? 'Atualizar' : 'Criar'}
+                    </Button>
+                  </div>
                 </div>
               </form>
             </DialogContent>
@@ -238,7 +386,9 @@ export default function PaymentsManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Descrição</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Parcelas</TableHead>
+                  <TableHead>Taxa</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -247,13 +397,41 @@ export default function PaymentsManagement() {
                 {paymentMethods.map((method) => (
                   <TableRow key={method.id}>
                     <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
-                        {method.name}
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-muted-foreground" />
+                          {method.name}
+                        </div>
+                        {method.description && (
+                          <span className="text-xs text-muted-foreground">{method.description}</span>
+                        )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {method.description || '-'}
+                    <TableCell>
+                      <span className="text-xs capitalize">
+                        {method.type.replace('_', ' ')}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {method.max_installments && method.max_installments > 1 ? (
+                        <div className="text-xs">
+                          <span>Até {method.max_installments}x</span>
+                          {method.interest_free_installments > 0 && (
+                            <span className="block text-muted-foreground">
+                              {method.interest_free_installments}x sem juros
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">À vista</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {method.fee_percentage > 0 ? (
+                        <span className="text-xs">{method.fee_percentage}%</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Sem taxa</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded text-xs ${method.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
