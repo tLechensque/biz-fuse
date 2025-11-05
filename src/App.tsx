@@ -16,6 +16,9 @@ import TagsManagement from "./pages/management/TagsManagement";
 import BrandsManagement from "./pages/management/BrandsManagement";
 import PaymentsManagement from "./pages/management/PaymentsManagement";
 import OrganizationSettings from "./pages/management/OrganizationSettings";
+import DiscountsManagement from "./pages/management/DiscountsManagement";
+import PortfolioManagement from "./pages/management/PortfolioManagement";
+import TemplatesManagement from "./pages/management/TemplatesManagement";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProfileSetup } from "./components/ProfileSetup";
 import { ProtectedLayout } from "./components/layout/ProtectedLayout";
@@ -59,23 +62,14 @@ const App = () => (
                     <p className="text-muted-foreground">Módulo de briefing em desenvolvimento...</p>
                   </div>
                 } />
-                <Route path="/templates" element={
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold mb-4">Templates</h1>
-                    <p className="text-muted-foreground">Módulo de templates em desenvolvimento...</p>
-                  </div>
-                } />
-                <Route path="/portfolio" element={
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold mb-4">Portfólio</h1>
-                    <p className="text-muted-foreground">Módulo de portfólio em desenvolvimento...</p>
-                  </div>
-                } />
+                <Route path="/templates" element={<TemplatesManagement />} />
+                <Route path="/portfolio" element={<PortfolioManagement />} />
                 <Route path="/payment-methods" element={<PaymentsManagement />} />
                 <Route path="/organization" element={<OrganizationSettings />} />
                 <Route path="/categories" element={<CategoriesManagement />} />
                 <Route path="/tags" element={<TagsManagement />} />
                 <Route path="/brands" element={<BrandsManagement />} />
+                <Route path="/discounts" element={<DiscountsManagement />} />
                 <Route path="/admin/users" element={<UsersManagement />} />
                 <Route path="/admin/permissions" element={<PermissionsManagement />} />
               </Route>

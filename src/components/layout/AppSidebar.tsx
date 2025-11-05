@@ -12,6 +12,7 @@ import {
   CreditCard,
   PieChart,
   Shield,
+  Percent,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -42,6 +43,7 @@ const managementItems = [
   { title: "Categorias", url: "/categories", icon: Layers },
   { title: "Tags", url: "/tags", icon: Package },
   { title: "Marcas", url: "/brands", icon: Package },
+  { title: "Descontos", url: "/discounts", icon: Percent },
   { title: "Templates", url: "/templates", icon: FileText },
   { title: "Portfólio", url: "/portfolio", icon: PieChart },
   { title: "Pagamentos", url: "/payment-methods", icon: CreditCard },

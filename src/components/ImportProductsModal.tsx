@@ -110,16 +110,14 @@ export const ImportProductsModal = ({ open, onClose, onSuccess }: ImportProducts
         mapping[header] = 'cost_price';
       } else if (lowerHeader.includes('venda') || lowerHeader.includes('preço') || lowerHeader.includes('preco') || lowerHeader.includes('valor')) {
         mapping[header] = 'sell_price';
-      } else if (lowerHeader.includes('marca')) {
-        mapping[header] = 'brand';
+      } else if (lowerHeader.includes('marca') || lowerHeader.includes('brand')) {
+        mapping[header] = 'brand_name';
       } else if (lowerHeader.includes('unidade') || lowerHeader.includes('unit')) {
-        mapping[header] = 'unit';
+        mapping[header] = 'unit_name';
       } else if (lowerHeader.includes('categoria') || lowerHeader.includes('category')) {
         mapping[header] = 'category_name';
       } else if (lowerHeader.includes('imagem') || lowerHeader.includes('image')) {
         mapping[header] = 'image_urls';
-      } else if (lowerHeader.includes('estoque') || lowerHeader.includes('stock') || lowerHeader.includes('quantidade')) {
-        mapping[header] = 'stock';
       } else {
         // Se não encontrou correspondência, deixa como ignorar
         mapping[header] = 'ignore';
