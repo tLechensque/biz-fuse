@@ -39,6 +39,9 @@ const mainItems = [
 ];
 
 const managementItems = [
+  { title: "Categorias", url: "/categories", icon: Layers },
+  { title: "Tags", url: "/tags", icon: Package },
+  { title: "Marcas", url: "/brands", icon: Package },
   { title: "Templates", url: "/templates", icon: FileText },
   { title: "Portfólio", url: "/portfolio", icon: PieChart },
   { title: "Pagamentos", url: "/payment-methods", icon: CreditCard },

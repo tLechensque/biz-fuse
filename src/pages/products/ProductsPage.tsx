@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Search, Edit, Trash2, Package, FileUp } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,11 +40,37 @@ const ProductsPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [brandFilter, setBrandFilter] = useState<string>('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: brands = [] } = useQuery({
+    queryKey: ['brands'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products', debouncedSearchTerm],
+    queryKey: ['products', debouncedSearchTerm, categoryFilter, brandFilter],
     queryFn: async () => {
       let query = supabase
         .from('products')
@@ -52,6 +79,14 @@ const ProductsPage = () => {
 
       if (debouncedSearchTerm) {
         query = query.or(`name.ilike.%${debouncedSearchTerm}%,sku.ilike.%${debouncedSearchTerm}%,brand.ilike.%${debouncedSearchTerm}%`);
+      }
+
+      if (categoryFilter) {
+        query = query.eq('category_id', categoryFilter);
+      }
+
+      if (brandFilter) {
+        query = query.eq('brand_id', brandFilter);
       }
 
       const { data, error } = await query;
@@ -162,7 +197,7 @@ const ProductsPage = () => {
         />
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -172,6 +207,30 @@ const ProductsPage = () => {
             className="pl-8"
           />
         </div>
+        
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Todas categorias" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todas categorias</SelectItem>
+            {categories.map((cat: any) => (
+              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={brandFilter} onValueChange={setBrandFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Todas marcas" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todas marcas</SelectItem>
+            {brands.map((brand: any) => (
+              <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -11,6 +11,11 @@ import ProductsPage from "./pages/products/ProductsPage";
 import ClientsPage from "./pages/clients/ClientsPage";
 import UsersManagement from "./pages/admin/UsersManagement";
 import PermissionsManagement from "./pages/admin/PermissionsManagement";
+import CategoriesManagement from "./pages/management/CategoriesManagement";
+import TagsManagement from "./pages/management/TagsManagement";
+import BrandsManagement from "./pages/management/BrandsManagement";
+import PaymentsManagement from "./pages/management/PaymentsManagement";
+import OrganizationSettings from "./pages/management/OrganizationSettings";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProfileSetup } from "./components/ProfileSetup";
 import { ProtectedLayout } from "./components/layout/ProtectedLayout";
@@ -66,18 +71,11 @@ const App = () => (
                     <p className="text-muted-foreground">Módulo de portfólio em desenvolvimento...</p>
                   </div>
                 } />
-                <Route path="/payment-methods" element={
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold mb-4">Métodos de Pagamento</h1>
-                    <p className="text-muted-foreground">Módulo de métodos de pagamento em desenvolvimento...</p>
-                  </div>
-                } />
-                <Route path="/organization" element={
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold mb-4">Organização</h1>
-                    <p className="text-muted-foreground">Configurações da organização em desenvolvimento...</p>
-                  </div>
-                } />
+                <Route path="/payment-methods" element={<PaymentsManagement />} />
+                <Route path="/organization" element={<OrganizationSettings />} />
+                <Route path="/categories" element={<CategoriesManagement />} />
+                <Route path="/tags" element={<TagsManagement />} />
+                <Route path="/brands" element={<BrandsManagement />} />
                 <Route path="/admin/users" element={<UsersManagement />} />
                 <Route path="/admin/permissions" element={<PermissionsManagement />} />
               </Route>
