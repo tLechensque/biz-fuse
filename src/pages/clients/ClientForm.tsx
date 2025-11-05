@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import InputMask from 'react-input-mask';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -169,13 +170,20 @@ export const ClientForm: React.FC<ClientFormProps> = ({ client, onClose }) => {
 
       <div className="space-y-2">
         <Label htmlFor="phone">Telefone</Label>
-        <Input
-          id="phone"
-          type="tel"
+        <InputMask
+          mask="(99) 99999-9999"
           value={formData.phone}
           onChange={(e) => handleInputChange('phone', e.target.value)}
-          placeholder="(11) 99999-9999"
-        />
+        >
+          {(inputProps: any) => (
+            <Input
+              {...inputProps}
+              id="phone"
+              type="tel"
+              placeholder="(11) 99999-9999"
+            />
+          )}
+        </InputMask>
       </div>
 
       <div className="space-y-2">

@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface ImageUploadProps {
   images: string[];
@@ -19,6 +20,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   maxImages = 5 
 }) => {
   const [uploading, setUploading] = useState(false);
+  const [showUrlDialog, setShowUrlDialog] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -86,16 +89,47 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   };
 
+  const handleAddImageUrl = () => {
+    if (!imageUrl.trim()) {
+      toast({
+        title: 'URL inválida',
+        description: 'Por favor, insira uma URL válida.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (images.length >= maxImages) {
+      toast({
+        title: 'Limite de imagens excedido',
+        description: `Você pode adicionar no máximo ${maxImages} imagens por produto.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onImagesChange([...images, imageUrl]);
+    setImageUrl('');
+    setShowUrlDialog(false);
+    
+    toast({
+      title: 'Imagem adicionada',
+      description: 'A imagem foi adicionada com sucesso.',
+    });
+  };
+
   const removeImage = async (imageUrl: string, index: number) => {
     try {
-      // Extract file path from URL for deletion
-      const urlParts = imageUrl.split('/');
-      const fileName = urlParts[urlParts.length - 1];
-      const filePath = `products/${fileName}`;
+      // Only try to delete from storage if it's a storage URL
+      if (imageUrl.includes('supabase')) {
+        const urlParts = imageUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        const filePath = `products/${fileName}`;
 
-      await supabase.storage
-        .from('product-images')
-        .remove([filePath]);
+        await supabase.storage
+          .from('product-images')
+          .remove([filePath]);
+      }
 
       const newImages = images.filter((_, i) => i !== index);
       onImagesChange(newImages);
@@ -117,9 +151,37 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Label>Imagens do Produto</Label>
-        <span className="text-sm text-muted-foreground">
-          {images.length}/{maxImages} imagens
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            {images.length}/{maxImages} imagens
+          </span>
+          {images.length < maxImages && (
+            <Dialog open={showUrlDialog} onOpenChange={setShowUrlDialog}>
+              <DialogTrigger asChild>
+                <Button type="button" variant="outline" size="sm">
+                  <LinkIcon className="h-4 w-4 mr-1" />
+                  Adicionar URL
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Imagem por URL</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input
+                    type="url"
+                    placeholder="https://exemplo.com/imagem.jpg"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                  />
+                  <Button type="button" onClick={handleAddImageUrl} className="w-full">
+                    Adicionar
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

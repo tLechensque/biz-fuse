@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { TagsInput } from '@/components/ui/tags-input';
+import { Combobox, ComboboxOption } from '@/components/ui/combobox';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -25,10 +25,10 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
     simple_description: product?.simple_description || '',
     cost_price: product?.cost_price || 0,
     sell_price: product?.sell_price || 0,
-    brand: product?.brand || '',
-    unit: product?.unit || 'pç',
     video_url: product?.video_url || '',
     category_id: product?.category_id || '',
+    brand_id: product?.brand_id || '',
+    unit_id: product?.unit_id || '',
   });
   
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_urls || []);
@@ -80,6 +80,110 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
     },
   });
 
+  const { data: brands = [] } = useQuery({
+    queryKey: ['brands'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: units = [] } = useQuery({
+    queryKey: ['units'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('units')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const createCategory = async (name: string) => {
+    if (!profile?.organization_id) return;
+    
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({ name, organization_id: profile.organization_id })
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: 'Erro ao criar categoria',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
+    handleInputChange('category_id', data.id);
+    toast({
+      title: 'Categoria criada',
+      description: 'A categoria foi criada com sucesso.',
+    });
+  };
+
+  const createBrand = async (name: string) => {
+    if (!profile?.organization_id) return;
+    
+    const { data, error } = await supabase
+      .from('brands')
+      .insert({ name, organization_id: profile.organization_id })
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: 'Erro ao criar marca',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['brands'] });
+    handleInputChange('brand_id', data.id);
+    toast({
+      title: 'Marca criada',
+      description: 'A marca foi criada com sucesso.',
+    });
+  };
+
+  const createUnit = async (name: string) => {
+    if (!profile?.organization_id) return;
+    
+    const { data, error } = await supabase
+      .from('units')
+      .insert({ name, organization_id: profile.organization_id })
+      .select()
+      .single();
+
+    if (error) {
+      toast({
+        title: 'Erro ao criar unidade',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['units'] });
+    handleInputChange('unit_id', data.id);
+    toast({
+      title: 'Unidade criada',
+      description: 'A unidade foi criada com sucesso.',
+    });
+  };
+
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!profile?.organization_id) {
@@ -87,10 +191,16 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
       }
 
       const payload = {
-        ...data,
+        name: data.name,
+        sku: data.sku || null,
+        full_description: data.full_description || null,
+        simple_description: data.simple_description || null,
         cost_price: Number(data.cost_price),
         sell_price: Number(data.sell_price),
         category_id: data.category_id || null,
+        brand_id: data.brand_id || null,
+        unit_id: data.unit_id || null,
+        video_url: data.video_url || null,
         organization_id: profile.organization_id,
         image_urls: imageUrls,
       };
@@ -216,7 +326,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
     const sanitizedName = sanitizeInput(formData.name);
     const sanitizedDescription = sanitizeInput(formData.simple_description);
     const sanitizedFullDescription = sanitizeInput(formData.full_description);
-    const sanitizedBrand = sanitizeInput(formData.brand || '');
     const sanitizedSku = sanitizeInput(formData.sku || '');
     
     if (!sanitizedName.trim()) {
@@ -260,7 +369,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
       name: sanitizedName,
       simple_description: sanitizedDescription,
       full_description: sanitizedFullDescription,
-      brand: sanitizedBrand,
       sku: sanitizedSku
     };
     
@@ -326,29 +434,36 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="brand">Marca</Label>
-          <Input
-            id="brand"
-            value={formData.brand}
-            onChange={(e) => handleInputChange('brand', e.target.value)}
-            placeholder="Marca do produto"
+          <Combobox
+            options={brands.map((brand): ComboboxOption => ({
+              value: brand.id,
+              label: brand.name,
+            }))}
+            value={formData.brand_id}
+            onValueChange={(value) => handleInputChange('brand_id', value)}
+            onCreateNew={createBrand}
+            placeholder="Selecione ou crie uma marca"
+            emptyText="Nenhuma marca encontrada"
+            createNewText="Criar marca"
+            searchPlaceholder="Buscar marca..."
           />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="category">Categoria</Label>
-          <Select value={formData.category_id || "none"} onValueChange={(value) => handleInputChange('category_id', value === "none" ? "" : value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione uma categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Sem categoria</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            options={categories.map((category): ComboboxOption => ({
+              value: category.id,
+              label: category.name,
+            }))}
+            value={formData.category_id}
+            onValueChange={(value) => handleInputChange('category_id', value)}
+            onCreateNew={createCategory}
+            placeholder="Selecione ou crie uma categoria"
+            emptyText="Nenhuma categoria encontrada"
+            createNewText="Criar categoria"
+            searchPlaceholder="Buscar categoria..."
+          />
         </div>
       </div>
 
@@ -392,21 +507,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="unit">Unidade</Label>
-          <Select value={formData.unit} onValueChange={(value) => handleInputChange('unit', value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pç">Peça</SelectItem>
-              <SelectItem value="m">Metro</SelectItem>
-              <SelectItem value="m²">Metro²</SelectItem>
-              <SelectItem value="m³">Metro³</SelectItem>
-              <SelectItem value="kg">Quilograma</SelectItem>
-              <SelectItem value="l">Litro</SelectItem>
-              <SelectItem value="cx">Caixa</SelectItem>
-              <SelectItem value="par">Par</SelectItem>
-            </SelectContent>
-          </Select>
+          <Combobox
+            options={units.map((unit): ComboboxOption => ({
+              value: unit.id,
+              label: unit.name,
+            }))}
+            value={formData.unit_id}
+            onValueChange={(value) => handleInputChange('unit_id', value)}
+            onCreateNew={createUnit}
+            placeholder="Selecione ou crie uma unidade"
+            emptyText="Nenhuma unidade encontrada"
+            createNewText="Criar unidade"
+            searchPlaceholder="Buscar unidade..."
+          />
         </div>
 
         <div className="space-y-2">

@@ -21,7 +21,9 @@ export interface Product {
   cost_price: number;
   sell_price: number;
   brand?: string;
-  unit: string;
+  brand_id?: string;
+  unit?: string;
+  unit_id?: string;
   video_url?: string;
   image_urls?: string[];
   category_id?: string;

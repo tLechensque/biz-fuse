@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      brands: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brands_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories: {
         Row: {
           created_at: string
@@ -174,6 +203,7 @@ export type Database = {
       products: {
         Row: {
           brand: string | null
+          brand_id: string | null
           category_id: string | null
           cost_price: number | null
           created_at: string
@@ -188,12 +218,14 @@ export type Database = {
           sku: string | null
           stock: number | null
           unit: string | null
+          unit_id: string | null
           updated_at: string
           user_id: string | null
           video_url: string | null
         }
         Insert: {
           brand?: string | null
+          brand_id?: string | null
           category_id?: string | null
           cost_price?: number | null
           created_at?: string
@@ -208,12 +240,14 @@ export type Database = {
           sku?: string | null
           stock?: number | null
           unit?: string | null
+          unit_id?: string | null
           updated_at?: string
           user_id?: string | null
           video_url?: string | null
         }
         Update: {
           brand?: string | null
+          brand_id?: string | null
           category_id?: string | null
           cost_price?: number | null
           created_at?: string
@@ -228,11 +262,19 @@ export type Database = {
           sku?: string | null
           stock?: number | null
           unit?: string | null
+          unit_id?: string | null
           updated_at?: string
           user_id?: string | null
           video_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_category_id_fkey"
             columns: ["category_id"]
@@ -245,6 +287,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
             referencedColumns: ["id"]
           },
         ]
@@ -411,6 +460,35 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tags_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      units: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "units_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

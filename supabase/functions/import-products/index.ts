@@ -89,6 +89,8 @@ serve(async (req) => {
     // --- Bloco 4: Processar produtos ---
     const productsToInsert = [];
     const categoriesCache: { [name: string]: string } = {};
+    const brandsCache: { [name: string]: string } = {};
+    const unitsCache: { [name: string]: string } = {};
     
     for (const row of dataRows) {
       try {
@@ -98,9 +100,7 @@ serve(async (req) => {
           simple_description: '',
           full_description: '',
           cost_price: 0,
-          sell_price: 0,
-          unit: 'pç',
-          stock: 0
+          sell_price: 0
         };
 
         // Mapear colunas baseado no columnMapping
@@ -115,8 +115,6 @@ serve(async (req) => {
             // Limpeza de preços
             const cleanPrice = String(value).replace(/,/g, '').replace(/[^\d.]/g, '');
             product[mappedField] = parseFloat(cleanPrice) || 0;
-          } else if (mappedField === 'stock') {
-            product[mappedField] = parseInt(String(value)) || 0;
           } else if (mappedField === 'image_urls' || mappedField === 'image_url') {
             // Processar URLs de imagens (separadas por vírgula ou ponto e vírgula)
             const urls = String(value).split(/[,;]/).map(url => url.trim()).filter(url => url);
@@ -133,7 +131,7 @@ serve(async (req) => {
                 .select('id')
                 .eq('name', value)
                 .eq('organization_id', userOrgId)
-                .single();
+                .maybeSingle();
 
               if (existingCategory) {
                 categoriesCache[value] = existingCategory.id;
@@ -155,6 +153,66 @@ serve(async (req) => {
             }
             if (categoriesCache[value]) {
               product.category_id = categoriesCache[value];
+            }
+          } else if (mappedField === 'brand_name') {
+            // Gestão de marcas
+            if (value && !brandsCache[value]) {
+              const { data: existingBrand } = await supabase
+                .from('brands')
+                .select('id')
+                .eq('name', value)
+                .eq('organization_id', userOrgId)
+                .maybeSingle();
+
+              if (existingBrand) {
+                brandsCache[value] = existingBrand.id;
+              } else {
+                const { data: newBrand, error: brandError } = await supabase
+                  .from('brands')
+                  .insert({
+                    name: value,
+                    organization_id: userOrgId
+                  })
+                  .select('id')
+                  .single();
+
+                if (!brandError && newBrand) {
+                  brandsCache[value] = newBrand.id;
+                }
+              }
+            }
+            if (brandsCache[value]) {
+              product.brand_id = brandsCache[value];
+            }
+          } else if (mappedField === 'unit_name') {
+            // Gestão de unidades
+            if (value && !unitsCache[value]) {
+              const { data: existingUnit } = await supabase
+                .from('units')
+                .select('id')
+                .eq('name', value)
+                .eq('organization_id', userOrgId)
+                .maybeSingle();
+
+              if (existingUnit) {
+                unitsCache[value] = existingUnit.id;
+              } else {
+                const { data: newUnit, error: unitError } = await supabase
+                  .from('units')
+                  .insert({
+                    name: value,
+                    organization_id: userOrgId
+                  })
+                  .select('id')
+                  .single();
+
+                if (!unitError && newUnit) {
+                  unitsCache[value] = newUnit.id;
+                }
+              }
+            }
+            if (unitsCache[value]) {
+              product.unit_id = unitsCache[value];
             }
           } else {
             product[mappedField] = value;

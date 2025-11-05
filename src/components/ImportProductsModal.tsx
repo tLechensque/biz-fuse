@@ -25,11 +25,10 @@ const SYSTEM_FIELDS = [
   { value: 'full_description', label: 'Descrição Completa' },
   { value: 'cost_price', label: 'Preço de Custo' },
   { value: 'sell_price', label: 'Preço de Venda' },
-  { value: 'brand', label: 'Marca' },
-  { value: 'unit', label: 'Unidade' },
+  { value: 'brand_name', label: 'Marca' },
+  { value: 'unit_name', label: 'Unidade' },
   { value: 'category_name', label: 'Categoria' },
   { value: 'image_urls', label: 'URLs de Imagens' },
-  { value: 'stock', label: 'Estoque' },
   { value: 'ignore', label: 'Ignorar esta coluna' }
 ];
 
@@ -44,9 +43,9 @@ export const ImportProductsModal = ({ open, onClose, onSuccess }: ImportProducts
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
     const wsData = [
-      ['name', 'sku', 'simple_description', 'full_description', 'cost_price', 'sell_price', 'brand', 'unit', 'category_name', 'image_url', 'stock'],
-      ['Produto Exemplo', 'SKU001', 'Descrição simples', 'Descrição completa do produto', 50.00, 100.00, 'Marca Exemplo', 'pç', 'Eletrônicos', 'https://exemplo.com/imagem1.jpg', 10],
-      ['Produto 2', 'SKU002', 'Outra descrição', 'Descrição detalhada', 25.50, 60.00, 'Outra Marca', 'kg', 'Casa e Jardim', 'https://exemplo.com/imagem2.jpg', 5]
+      ['name', 'sku', 'simple_description', 'full_description', 'cost_price', 'sell_price', 'brand_name', 'unit_name', 'category_name', 'image_urls'],
+      ['Produto Exemplo', 'SKU001', 'Descrição simples', 'Descrição completa do produto', 50.00, 100.00, 'Marca Exemplo', 'Peça', 'Eletrônicos', 'https://exemplo.com/imagem1.jpg'],
+      ['Produto 2', 'SKU002', 'Outra descrição', 'Descrição detalhada', 25.50, 60.00, 'Outra Marca', 'Quilograma', 'Casa e Jardim', 'https://exemplo.com/imagem2.jpg;https://exemplo.com/imagem3.jpg']
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     
