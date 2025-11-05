@@ -10,13 +10,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Pencil, Trash2, Loader2, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Package, FileText, Upload } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Brand {
   id: string;
   name: string;
   supplier_id: string | null;
+  price_list_url: string | null;
   created_at: string;
 }
 
@@ -29,7 +30,9 @@ export default function BrandsManagement() {
   const [formData, setFormData] = useState({
     name: '',
     supplier_id: null as string | null,
+    price_list_url: null as string | null,
   });
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers-list'],
@@ -70,7 +73,7 @@ export default function BrandsManagement() {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast({ title: 'Marca criada com sucesso' });
       setDialogOpen(false);
-      setFormData({ name: '', supplier_id: null });
+      setFormData({ name: '', supplier_id: null, price_list_url: null });
     },
     onError: (error: any) => {
       toast({
@@ -94,7 +97,7 @@ export default function BrandsManagement() {
       toast({ title: 'Marca atualizada com sucesso' });
       setDialogOpen(false);
       setEditingBrand(null);
-      setFormData({ name: '', supplier_id: null });
+      setFormData({ name: '', supplier_id: null, price_list_url: null });
     },
     onError: (error: any) => {
       toast({
@@ -142,14 +145,56 @@ export default function BrandsManagement() {
     setFormData({
       name: brand.name,
       supplier_id: brand.supplier_id,
+      price_list_url: brand.price_list_url,
     });
     setDialogOpen(true);
   };
 
   const handleNewBrand = () => {
     setEditingBrand(null);
-    setFormData({ name: '', supplier_id: null });
+    setFormData({ name: '', supplier_id: null, price_list_url: null });
     setDialogOpen(true);
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile?.organization_id) return;
+
+    if (file.type !== 'application/pdf') {
+      toast({
+        title: 'Arquivo inválido',
+        description: 'Por favor, envie apenas arquivos PDF',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadingPdf(true);
+    try {
+      const fileExt = 'pdf';
+      const fileName = `${profile.organization_id}/${Date.now()}_${file.name}`;
+      
+      const { error: uploadError, data } = await supabase.storage
+        .from('price-lists')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('price-lists')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, price_list_url: publicUrl });
+      toast({ title: 'PDF enviado com sucesso' });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao enviar PDF',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingPdf(false);
+    }
   };
 
   if (isLoading) {
@@ -212,6 +257,33 @@ export default function BrandsManagement() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="price_list">Lista de Preços (PDF)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="price_list"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfUpload}
+                    disabled={uploadingPdf}
+                    className="flex-1"
+                  />
+                  {uploadingPdf && <Loader2 className="h-4 w-4 animate-spin" />}
+                </div>
+                {formData.price_list_url && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <FileText className="h-4 w-4" />
+                    <a 
+                      href={formData.price_list_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      Ver PDF atual
+                    </a>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-2 justify-end">
                 <Button
                   type="button"
@@ -242,6 +314,7 @@ export default function BrandsManagement() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Fornecedor</TableHead>
+                <TableHead>Lista de Preços</TableHead>
                 <TableHead>Data de Criação</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -258,6 +331,19 @@ export default function BrandsManagement() {
                   <TableCell>
                     {brand.supplier_id ? (
                       suppliers.find((s: any) => s.id === brand.supplier_id)?.name || '-'
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {brand.price_list_url ? (
+                      <a 
+                        href={brand.price_list_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Ver PDF
+                      </a>
                     ) : '-'}
                   </TableCell>
                   <TableCell>

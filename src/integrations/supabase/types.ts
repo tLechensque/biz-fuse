@@ -20,6 +20,7 @@ export type Database = {
           id: string
           name: string
           organization_id: string
+          price_list_url: string | null
           supplier_id: string | null
         }
         Insert: {
@@ -27,6 +28,7 @@ export type Database = {
           id?: string
           name: string
           organization_id: string
+          price_list_url?: string | null
           supplier_id?: string | null
         }
         Update: {
@@ -34,6 +36,7 @@ export type Database = {
           id?: string
           name?: string
           organization_id?: string
+          price_list_url?: string | null
           supplier_id?: string | null
         }
         Relationships: [
@@ -821,6 +824,7 @@ export type Database = {
           notes: string | null
           organization_id: string
           phone: string | null
+          price_list_url: string | null
           razao_social: string | null
           updated_at: string
           whatsapp: string | null
@@ -837,6 +841,7 @@ export type Database = {
           notes?: string | null
           organization_id: string
           phone?: string | null
+          price_list_url?: string | null
           razao_social?: string | null
           updated_at?: string
           whatsapp?: string | null
@@ -853,6 +858,7 @@ export type Database = {
           notes?: string | null
           organization_id?: string
           phone?: string | null
+          price_list_url?: string | null
           razao_social?: string | null
           updated_at?: string
           whatsapp?: string | null

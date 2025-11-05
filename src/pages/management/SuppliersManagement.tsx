@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Loader2, Building2, Phone, Mail } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Building2, Phone, Mail, FileText, Upload, Package } from 'lucide-react';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 
 interface Supplier {
@@ -29,7 +29,14 @@ interface Supplier {
   address: string | null;
   notes: string | null;
   is_active: boolean;
+  price_list_url: string | null;
   created_at: string;
+}
+
+interface Brand {
+  id: string;
+  name: string;
+  supplier_id: string | null;
 }
 
 export default function SuppliersManagement() {
@@ -49,7 +56,9 @@ export default function SuppliersManagement() {
     address: '',
     notes: '',
     is_active: true,
+    price_list_url: null as string | null,
   });
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ['suppliers', profile?.organization_id],
@@ -62,6 +71,21 @@ export default function SuppliersManagement() {
       
       if (error) throw error;
       return data as Supplier[];
+    },
+    enabled: !!profile?.organization_id,
+  });
+
+  const { data: brands = [] } = useQuery({
+    queryKey: ['brands', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('*')
+        .eq('organization_id', profile?.organization_id!)
+        .order('name');
+      
+      if (error) throw error;
+      return data as Brand[];
     },
     enabled: !!profile?.organization_id,
   });
@@ -154,6 +178,7 @@ export default function SuppliersManagement() {
       address: supplier.address || '',
       notes: supplier.notes || '',
       is_active: supplier.is_active,
+      price_list_url: supplier.price_list_url,
     });
     setDialogOpen(true);
   };
@@ -171,8 +196,50 @@ export default function SuppliersManagement() {
       address: '',
       notes: '',
       is_active: true,
+      price_list_url: null,
     });
     setDialogOpen(true);
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile?.organization_id) return;
+
+    if (file.type !== 'application/pdf') {
+      toast({
+        title: 'Arquivo inválido',
+        description: 'Por favor, envie apenas arquivos PDF',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadingPdf(true);
+    try {
+      const fileExt = 'pdf';
+      const fileName = `${profile.organization_id}/${Date.now()}_${file.name}`;
+      
+      const { error: uploadError, data } = await supabase.storage
+        .from('price-lists')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('price-lists')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, price_list_url: publicUrl });
+      toast({ title: 'PDF enviado com sucesso' });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao enviar PDF',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingPdf(false);
+    }
   };
 
   const handleCloseDialog = () => {
@@ -330,6 +397,58 @@ export default function SuppliersManagement() {
                       rows={3}
                     />
                   </div>
+
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="price_list">Lista de Preços (PDF)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="price_list"
+                        type="file"
+                        accept="application/pdf"
+                        onChange={handlePdfUpload}
+                        disabled={uploadingPdf}
+                        className="flex-1"
+                      />
+                      {uploadingPdf && <Loader2 className="h-4 w-4 animate-spin" />}
+                    </div>
+                    {formData.price_list_url && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <FileText className="h-4 w-4" />
+                        <a 
+                          href={formData.price_list_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          Ver PDF atual
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {editingSupplier && (
+                    <div className="col-span-2 space-y-2">
+                      <Label>Marcas Associadas</Label>
+                      <div className="p-4 border rounded-lg bg-muted/30">
+                        {brands.filter(b => b.supplier_id === editingSupplier.id).length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {brands
+                              .filter(b => b.supplier_id === editingSupplier.id)
+                              .map(brand => (
+                                <Badge key={brand.id} variant="secondary" className="flex items-center gap-1">
+                                  <Package className="h-3 w-3" />
+                                  {brand.name}
+                                </Badge>
+                              ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Nenhuma marca associada. Vincule marcas na página de Marcas.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t">
@@ -370,6 +489,8 @@ export default function SuppliersManagement() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Contato</TableHead>
                   <TableHead>CNPJ</TableHead>
+                  <TableHead>Marcas</TableHead>
+                  <TableHead>Lista de Preços</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -410,6 +531,40 @@ export default function SuppliersManagement() {
                       </div>
                     </TableCell>
                     <TableCell>{supplier.cnpj || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {brands.filter(b => b.supplier_id === supplier.id).length > 0 ? (
+                          brands
+                            .filter(b => b.supplier_id === supplier.id)
+                            .slice(0, 3)
+                            .map(brand => (
+                              <Badge key={brand.id} variant="outline" className="text-xs">
+                                {brand.name}
+                              </Badge>
+                            ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
+                        {brands.filter(b => b.supplier_id === supplier.id).length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{brands.filter(b => b.supplier_id === supplier.id).length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {supplier.price_list_url ? (
+                        <a 
+                          href={supplier.price_list_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Ver PDF
+                        </a>
+                      ) : '-'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={supplier.is_active ? 'default' : 'secondary'}>
                         {supplier.is_active ? 'Ativo' : 'Inativo'}
