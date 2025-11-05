@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, Building2, Save, Plus, Pencil, Trash2, Phone } from 'lucide-react';
+import { Loader2, Building2, Save, Plus, Pencil, Trash2, Phone, X, Search } from 'lucide-react';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 
 interface Organization {
@@ -19,7 +19,13 @@ interface Organization {
   name: string;
   razao_social: string | null;
   cnpj: string | null;
-  endereco: string | null;
+  cep: string | null;
+  rua: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  estado: string | null;
   whatsapp: string | null;
   telefone: string | null;
   email: string | null;
@@ -34,11 +40,18 @@ export default function OrganizationSettings() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [additionalPhone, setAdditionalPhone] = useState(false);
+  const [searchingCep, setSearchingCep] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     razao_social: '',
     cnpj: '',
-    endereco: '',
+    cep: '',
+    rua: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    estado: '',
     whatsapp: '',
     telefone: '',
     email: '',
@@ -140,7 +153,13 @@ export default function OrganizationSettings() {
       name: org.name,
       razao_social: org.razao_social || '',
       cnpj: org.cnpj || '',
-      endereco: org.endereco || '',
+      cep: org.cep || '',
+      rua: org.rua || '',
+      numero: org.numero || '',
+      complemento: org.complemento || '',
+      bairro: org.bairro || '',
+      cidade: org.cidade || '',
+      estado: org.estado || '',
       whatsapp: org.whatsapp || '',
       telefone: org.telefone || '',
       email: org.email || '',
@@ -156,7 +175,13 @@ export default function OrganizationSettings() {
       name: '',
       razao_social: '',
       cnpj: '',
-      endereco: '',
+      cep: '',
+      rua: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
       whatsapp: '',
       telefone: '',
       email: '',
@@ -170,6 +195,52 @@ export default function OrganizationSettings() {
     setDialogOpen(false);
     setEditingOrg(null);
     setAdditionalPhone(false);
+  };
+
+  const handleSearchCep = async () => {
+    const cep = formData.cep.replace(/\D/g, '');
+    if (cep.length !== 8) {
+      toast({
+        title: 'CEP inválido',
+        description: 'Digite um CEP válido com 8 dígitos',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSearchingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+
+      if (data.erro) {
+        toast({
+          title: 'CEP não encontrado',
+          description: 'Verifique o CEP digitado',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setFormData({
+        ...formData,
+        rua: data.logradouro || '',
+        bairro: data.bairro || '',
+        cidade: data.localidade || '',
+        estado: data.uf || '',
+        complemento: data.complemento || '',
+      });
+
+      toast({ title: 'Endereço encontrado com sucesso!' });
+    } catch (error) {
+      toast({
+        title: 'Erro ao buscar CEP',
+        description: 'Tente novamente mais tarde',
+        variant: 'destructive',
+      });
+    } finally {
+      setSearchingCep(false);
+    }
   };
 
   if (isLoading) {
@@ -275,14 +346,108 @@ export default function OrganizationSettings() {
                     />
                   </div>
 
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="endereco">Endereço</Label>
-                    <Input
-                      id="endereco"
-                      value={formData.endereco}
-                      onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                      placeholder="Endereço completo"
-                    />
+                  <div className="col-span-2 space-y-4 border-t pt-4">
+                    <h3 className="font-semibold">Endereço</h3>
+                    
+                    <div className="grid grid-cols-4 gap-4">
+                      <div className="col-span-3 space-y-2">
+                        <Label htmlFor="cep">CEP</Label>
+                        <InputMask
+                          mask="99999-999"
+                          value={formData.cep}
+                          onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                        >
+                          {(inputProps: any) => (
+                            <Input
+                              {...inputProps}
+                              id="cep"
+                              placeholder="00000-000"
+                            />
+                          )}
+                        </InputMask>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>&nbsp;</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full"
+                          onClick={handleSearchCep}
+                          disabled={searchingCep || !formData.cep}
+                        >
+                          {searchingCep ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Search className="h-4 w-4 mr-2" />
+                              Buscar
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="col-span-2 space-y-2">
+                        <Label htmlFor="rua">Rua</Label>
+                        <Input
+                          id="rua"
+                          value={formData.rua}
+                          onChange={(e) => setFormData({ ...formData, rua: e.target.value })}
+                          placeholder="Nome da rua"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="numero">Número</Label>
+                        <Input
+                          id="numero"
+                          value={formData.numero}
+                          onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                          placeholder="Nº"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="complemento">Complemento</Label>
+                        <Input
+                          id="complemento"
+                          value={formData.complemento}
+                          onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                          placeholder="Apto, sala, etc"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bairro">Bairro</Label>
+                        <Input
+                          id="bairro"
+                          value={formData.bairro}
+                          onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
+                          placeholder="Bairro"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cidade">Cidade</Label>
+                        <Input
+                          id="cidade"
+                          value={formData.cidade}
+                          onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                          placeholder="Cidade"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="estado">Estado</Label>
+                      <Input
+                        id="estado"
+                        value={formData.estado}
+                        onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
+                        placeholder="UF"
+                        maxLength={2}
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -316,7 +481,21 @@ export default function OrganizationSettings() {
                       </Button>
                     ) : (
                       <>
-                        <Label htmlFor="telefone">Telefone Adicional</Label>
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="telefone">Telefone Adicional</Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setAdditionalPhone(false);
+                              setFormData({ ...formData, telefone: '' });
+                            }}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Remover
+                          </Button>
+                        </div>
                         <InputMask
                           mask="(99) 99999-9999"
                           value={formData.telefone}
@@ -374,6 +553,22 @@ export default function OrganizationSettings() {
                       <span className="font-medium">{org.cnpj}</span>
                     </div>
                   )}
+                  {(org.rua || org.cep) && (
+                    <div>
+                      <span className="text-muted-foreground">Endereço: </span>
+                      <span className="font-medium">
+                        {[
+                          org.rua,
+                          org.numero,
+                          org.complemento,
+                          org.bairro,
+                          org.cidade,
+                          org.estado,
+                          org.cep
+                        ].filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
                   {org.whatsapp && (
                     <div>
                       <span className="text-muted-foreground">WhatsApp: </span>
@@ -390,12 +585,6 @@ export default function OrganizationSettings() {
                     <div>
                       <span className="text-muted-foreground">E-mail: </span>
                       <span className="font-medium">{org.email}</span>
-                    </div>
-                  )}
-                  {org.endereco && (
-                    <div>
-                      <span className="text-muted-foreground">Endereço: </span>
-                      <span className="font-medium">{org.endereco}</span>
                     </div>
                   )}
                 </div>

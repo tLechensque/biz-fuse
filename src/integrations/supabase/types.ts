@@ -128,42 +128,60 @@ export type Database = {
       }
       organizations: {
         Row: {
+          bairro: string | null
+          cep: string | null
+          cidade: string | null
           cnpj: string | null
+          complemento: string | null
           created_at: string
           email: string | null
-          endereco: string | null
+          estado: string | null
           id: string
           matriz_id: string | null
           name: string
+          numero: string | null
           razao_social: string | null
+          rua: string | null
           settings: Json | null
           telefone: string | null
           tipo: string | null
           whatsapp: string | null
         }
         Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
+          complemento?: string | null
           created_at?: string
           email?: string | null
-          endereco?: string | null
+          estado?: string | null
           id?: string
           matriz_id?: string | null
           name: string
+          numero?: string | null
           razao_social?: string | null
+          rua?: string | null
           settings?: Json | null
           telefone?: string | null
           tipo?: string | null
           whatsapp?: string | null
         }
         Update: {
+          bairro?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
+          complemento?: string | null
           created_at?: string
           email?: string | null
-          endereco?: string | null
+          estado?: string | null
           id?: string
           matriz_id?: string | null
           name?: string
+          numero?: string | null
           razao_social?: string | null
+          rua?: string | null
           settings?: Json | null
           telefone?: string | null
           tipo?: string | null
