@@ -58,50 +58,96 @@ serve(async (req) => {
 
     const { email, name, role, organizationId }: InviteRequest = await req.json();
 
-    // Create user with admin API
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: {
-        name,
-      },
-    });
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find(u => u.email === email);
 
-    if (createError) {
-      throw createError;
-    }
+    let userId: string;
 
-    if (!newUser.user) {
-      throw new Error("Failed to create user");
-    }
+    if (existingUser) {
+      // User already exists, just update their info and resend invitation
+      console.log("User already exists, updating and resending invite");
+      userId = existingUser.id;
 
-    // Create profile
-    const { error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .insert({
-        user_id: newUser.user.id,
-        name,
+      // Update user metadata
+      await supabaseAdmin.auth.admin.updateUserById(userId, {
+        user_metadata: { name },
+      });
+
+      // Update or create profile
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .upsert({
+          user_id: userId,
+          name,
+          email,
+          organization_id: organizationId,
+        });
+
+      if (profileError) {
+        console.error("Profile error:", profileError);
+      }
+
+      // Update or create role
+      const { error: roleError } = await supabaseAdmin
+        .from("user_roles")
+        .upsert({
+          user_id: userId,
+          role,
+          created_by: user.id,
+        });
+
+      if (roleError) {
+        console.error("Role error:", roleError);
+      }
+    } else {
+      // Create new user
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
-        organization_id: organizationId,
+        email_confirm: true,
+        user_metadata: {
+          name,
+        },
       });
 
-    if (profileError) {
-      console.error("Profile error:", profileError);
-      throw profileError;
-    }
+      if (createError) {
+        throw createError;
+      }
 
-    // Assign role
-    const { error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .insert({
-        user_id: newUser.user.id,
-        role,
-        created_by: user.id,
-      });
+      if (!newUser.user) {
+        throw new Error("Failed to create user");
+      }
 
-    if (roleError) {
-      console.error("Role error:", roleError);
-      throw roleError;
+      userId = newUser.user.id;
+
+      // Create profile
+      const { error: profileError } = await supabaseAdmin
+        .from("profiles")
+        .insert({
+          user_id: userId,
+          name,
+          email,
+          organization_id: organizationId,
+        });
+
+      if (profileError) {
+        console.error("Profile error:", profileError);
+        throw profileError;
+      }
+
+      // Assign role
+      const { error: roleError } = await supabaseAdmin
+        .from("user_roles")
+        .insert({
+          user_id: userId,
+          role,
+          created_by: user.id,
+        });
+
+      if (roleError) {
+        console.error("Role error:", roleError);
+        throw roleError;
+      }
     }
 
     // Send password reset email so user can set their password
@@ -118,8 +164,8 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         user: {
-          id: newUser.user.id,
-          email: newUser.user.email,
+          id: userId,
+          email: email,
         },
       }),
       {
