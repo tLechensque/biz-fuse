@@ -40,9 +40,9 @@ const ProductsPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [brandFilter, setBrandFilter] = useState<string>('');
-  const [tagFilter, setTagFilter] = useState<string>('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [brandFilter, setBrandFilter] = useState<string>('all');
+  const [tagFilter, setTagFilter] = useState<string>('all');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -94,11 +94,11 @@ const ProductsPage = () => {
         query = query.or(`name.ilike.%${debouncedSearchTerm}%,sku.ilike.%${debouncedSearchTerm}%,brand.ilike.%${debouncedSearchTerm}%`);
       }
 
-      if (categoryFilter) {
+      if (categoryFilter && categoryFilter !== 'all') {
         query = query.eq('category_id', categoryFilter);
       }
 
-      if (brandFilter) {
+      if (brandFilter && brandFilter !== 'all') {
         query = query.eq('brand_id', brandFilter);
       }
 
@@ -108,7 +108,7 @@ const ProductsPage = () => {
       let filteredData = data as Product[];
       
       // Apply tag filter if selected
-      if (tagFilter) {
+      if (tagFilter && tagFilter !== 'all') {
         const { data: productTags, error: tagError } = await supabase
           .from('product_tags')
           .select('product_id')
@@ -242,7 +242,7 @@ const ProductsPage = () => {
             <SelectValue placeholder="Categorias" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas categorias</SelectItem>
+            <SelectItem value="all">Todas categorias</SelectItem>
             {categories.map((cat: any) => (
               <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
             ))}
@@ -254,7 +254,7 @@ const ProductsPage = () => {
             <SelectValue placeholder="Marcas" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas marcas</SelectItem>
+            <SelectItem value="all">Todas marcas</SelectItem>
             {brands.map((brand: any) => (
               <SelectItem key={brand.id} value={brand.id}>{brand.name}</SelectItem>
             ))}
@@ -266,7 +266,7 @@ const ProductsPage = () => {
             <SelectValue placeholder="Tags" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas tags</SelectItem>
+            <SelectItem value="all">Todas tags</SelectItem>
             {tags.map((tag: any) => (
               <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
             ))}
