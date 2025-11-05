@@ -25,9 +25,10 @@ interface Discount {
   start_date: string;
   end_date: string;
   is_active: boolean;
-  product_id: string | null;
-  brand_id: string | null;
-  category_id: string | null;
+  product_ids: string[];
+  brand_ids: string[];
+  category_ids: string[];
+  supplier_id: string | null;
   created_at: string;
 }
 
@@ -45,8 +46,9 @@ export default function DiscountsManagement() {
     start_date: '',
     end_date: '',
     is_active: true,
-    target_type: 'product' as 'product' | 'brand' | 'category',
-    target_id: '',
+    target_type: 'product' as 'product' | 'brand' | 'category' | 'supplier',
+    target_ids: [] as string[],
+    supplier_id: null as string | null,
   });
 
   const { data: products = [] } = useQuery({
@@ -85,6 +87,19 @@ export default function DiscountsManagement() {
     },
   });
 
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ['suppliers-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const { data: discounts = [], isLoading } = useQuery({
     queryKey: ['discounts', profile?.organization_id],
     queryFn: async () => {
@@ -111,17 +126,20 @@ export default function DiscountsManagement() {
         end_date: data.end_date,
         is_active: data.is_active,
         organization_id: profile?.organization_id,
-        product_id: null,
-        brand_id: null,
-        category_id: null,
+        product_ids: [],
+        brand_ids: [],
+        category_ids: [],
+        supplier_id: null,
       };
 
       if (data.target_type === 'product') {
-        payload.product_id = data.target_id;
+        payload.product_ids = data.target_ids;
       } else if (data.target_type === 'brand') {
-        payload.brand_id = data.target_id;
+        payload.brand_ids = data.target_ids;
       } else if (data.target_type === 'category') {
-        payload.category_id = data.target_id;
+        payload.category_ids = data.target_ids;
+      } else if (data.target_type === 'supplier') {
+        payload.supplier_id = data.supplier_id;
       }
 
       const { error } = await supabase
@@ -153,17 +171,20 @@ export default function DiscountsManagement() {
         start_date: data.start_date,
         end_date: data.end_date,
         is_active: data.is_active,
-        product_id: null,
-        brand_id: null,
-        category_id: null,
+        product_ids: [],
+        brand_ids: [],
+        category_ids: [],
+        supplier_id: null,
       };
 
       if (data.target_type === 'product') {
-        payload.product_id = data.target_id;
+        payload.product_ids = data.target_ids;
       } else if (data.target_type === 'brand') {
-        payload.brand_id = data.target_id;
+        payload.brand_ids = data.target_ids;
       } else if (data.target_type === 'category') {
-        payload.category_id = data.target_id;
+        payload.category_ids = data.target_ids;
+      } else if (data.target_type === 'supplier') {
+        payload.supplier_id = data.supplier_id;
       }
 
       const { error } = await supabase
@@ -209,7 +230,9 @@ export default function DiscountsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.target_id) return;
+    if (!formData.name.trim()) return;
+    if (formData.target_type !== 'supplier' && formData.target_ids.length === 0) return;
+    if (formData.target_type === 'supplier' && !formData.supplier_id) return;
 
     if (editingDiscount) {
       updateMutation.mutate({ id: editingDiscount.id, data: formData });
@@ -220,8 +243,23 @@ export default function DiscountsManagement() {
 
   const handleEdit = (discount: Discount) => {
     setEditingDiscount(discount);
-    const targetType = discount.product_id ? 'product' : discount.brand_id ? 'brand' : 'category';
-    const targetId = discount.product_id || discount.brand_id || discount.category_id || '';
+    let targetType: 'product' | 'brand' | 'category' | 'supplier' = 'product';
+    let targetIds: string[] = [];
+    let supplierId: string | null = null;
+
+    if (discount.product_ids.length > 0) {
+      targetType = 'product';
+      targetIds = discount.product_ids;
+    } else if (discount.brand_ids.length > 0) {
+      targetType = 'brand';
+      targetIds = discount.brand_ids;
+    } else if (discount.category_ids.length > 0) {
+      targetType = 'category';
+      targetIds = discount.category_ids;
+    } else if (discount.supplier_id) {
+      targetType = 'supplier';
+      supplierId = discount.supplier_id;
+    }
     
     setFormData({
       name: discount.name,
@@ -232,7 +270,8 @@ export default function DiscountsManagement() {
       end_date: discount.end_date.split('T')[0],
       is_active: discount.is_active,
       target_type: targetType,
-      target_id: targetId,
+      target_ids: targetIds,
+      supplier_id: supplierId,
     });
     setDialogOpen(true);
   };
@@ -248,7 +287,8 @@ export default function DiscountsManagement() {
       end_date: '',
       is_active: true,
       target_type: 'product',
-      target_id: '',
+      target_ids: [],
+      supplier_id: null,
     });
     setDialogOpen(true);
   };
@@ -265,22 +305,36 @@ export default function DiscountsManagement() {
       end_date: '',
       is_active: true,
       target_type: 'product',
-      target_id: '',
+      target_ids: [],
+      supplier_id: null,
     });
   };
 
   const getTargetName = (discount: Discount) => {
-    if (discount.product_id) {
-      const product = products.find(p => p.id === discount.product_id);
-      return product ? `Produto: ${product.name}` : 'Produto';
+    if (discount.product_ids.length > 0) {
+      const names = discount.product_ids.map(id => {
+        const product = products.find(p => p.id === id);
+        return product?.name || id;
+      });
+      return `Produtos: ${names.join(', ')}`;
     }
-    if (discount.brand_id) {
-      const brand = brands.find(b => b.id === discount.brand_id);
-      return brand ? `Marca: ${brand.name}` : 'Marca';
+    if (discount.brand_ids.length > 0) {
+      const names = discount.brand_ids.map(id => {
+        const brand = brands.find(b => b.id === id);
+        return brand?.name || id;
+      });
+      return `Marcas: ${names.join(', ')}`;
     }
-    if (discount.category_id) {
-      const category = categories.find(c => c.id === discount.category_id);
-      return category ? `Categoria: ${category.name}` : 'Categoria';
+    if (discount.category_ids.length > 0) {
+      const names = discount.category_ids.map(id => {
+        const category = categories.find(c => c.id === id);
+        return category?.name || id;
+      });
+      return `Categorias: ${names.join(', ')}`;
+    }
+    if (discount.supplier_id) {
+      const supplier = suppliers.find(s => s.id === discount.supplier_id);
+      return supplier ? `Fornecedor: ${supplier.name}` : 'Fornecedor';
     }
     return '-';
   };
@@ -400,47 +454,104 @@ export default function DiscountsManagement() {
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="col-span-2 space-y-2">
                     <Label htmlFor="target_type">Aplicar em</Label>
                     <Select
                       value={formData.target_type}
-                      onValueChange={(value: any) => setFormData({ ...formData, target_type: value, target_id: '' })}
+                      onValueChange={(value: any) => setFormData({ ...formData, target_type: value, target_ids: [], supplier_id: null })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="product">Produto Específico</SelectItem>
-                        <SelectItem value="brand">Marca Inteira</SelectItem>
-                        <SelectItem value="category">Categoria Inteira</SelectItem>
+                        <SelectItem value="product">Produtos Específicos</SelectItem>
+                        <SelectItem value="brand">Marcas</SelectItem>
+                        <SelectItem value="category">Categorias</SelectItem>
+                        <SelectItem value="supplier">Fornecedor (todas marcas)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="target_id">
-                      {formData.target_type === 'product' ? 'Produto' : formData.target_type === 'brand' ? 'Marca' : 'Categoria'}
-                    </Label>
-                    <Select
-                      value={formData.target_id}
-                      onValueChange={(value) => setFormData({ ...formData, target_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
+                  {formData.target_type === 'supplier' ? (
+                    <div className="col-span-2 space-y-2">
+                      <Label htmlFor="supplier_id">Fornecedor</Label>
+                      <Select
+                        value={formData.supplier_id || ''}
+                        onValueChange={(value) => setFormData({ ...formData, supplier_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o fornecedor..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="col-span-2 space-y-2">
+                      <Label>
+                        {formData.target_type === 'product' ? 'Produtos' : formData.target_type === 'brand' ? 'Marcas' : 'Categorias'} (múltipla seleção)
+                      </Label>
+                      <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
                         {formData.target_type === 'product' && products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          <div key={p.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id={`product-${p.id}`}
+                              checked={formData.target_ids.includes(p.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, target_ids: [...formData.target_ids, p.id] });
+                                } else {
+                                  setFormData({ ...formData, target_ids: formData.target_ids.filter(id => id !== p.id) });
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <label htmlFor={`product-${p.id}`} className="text-sm cursor-pointer">{p.name}</label>
+                          </div>
                         ))}
                         {formData.target_type === 'brand' && brands.map((b) => (
-                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                          <div key={b.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id={`brand-${b.id}`}
+                              checked={formData.target_ids.includes(b.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, target_ids: [...formData.target_ids, b.id] });
+                                } else {
+                                  setFormData({ ...formData, target_ids: formData.target_ids.filter(id => id !== b.id) });
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <label htmlFor={`brand-${b.id}`} className="text-sm cursor-pointer">{b.name}</label>
+                          </div>
                         ))}
                         {formData.target_type === 'category' && categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          <div key={c.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id={`category-${c.id}`}
+                              checked={formData.target_ids.includes(c.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData({ ...formData, target_ids: [...formData.target_ids, c.id] });
+                                } else {
+                                  setFormData({ ...formData, target_ids: formData.target_ids.filter(id => id !== c.id) });
+                                }
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <label htmlFor={`category-${c.id}`} className="text-sm cursor-pointer">{c.name}</label>
+                          </div>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t">

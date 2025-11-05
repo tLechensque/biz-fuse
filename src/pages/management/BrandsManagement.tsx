@@ -11,10 +11,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Plus, Pencil, Trash2, Loader2, Package } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Brand {
   id: string;
   name: string;
+  supplier_id: string | null;
   created_at: string;
 }
 
@@ -24,7 +26,23 @@ export default function BrandsManagement() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-  const [brandName, setBrandName] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    supplier_id: null as string | null,
+  });
+
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ['suppliers-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: brands = [], isLoading } = useQuery({
     queryKey: ['brands', profile?.organization_id],
@@ -42,17 +60,17 @@ export default function BrandsManagement() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (data: typeof formData) => {
       const { error } = await supabase
         .from('brands')
-        .insert({ name, organization_id: profile?.organization_id });
+        .insert({ ...data, organization_id: profile?.organization_id });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
       toast({ title: 'Marca criada com sucesso' });
       setDialogOpen(false);
-      setBrandName('');
+      setFormData({ name: '', supplier_id: null });
     },
     onError: (error: any) => {
       toast({
@@ -64,10 +82,10 @@ export default function BrandsManagement() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
       const { error } = await supabase
         .from('brands')
-        .update({ name })
+        .update(data)
         .eq('id', id);
       if (error) throw error;
     },
@@ -76,7 +94,7 @@ export default function BrandsManagement() {
       toast({ title: 'Marca atualizada com sucesso' });
       setDialogOpen(false);
       setEditingBrand(null);
-      setBrandName('');
+      setFormData({ name: '', supplier_id: null });
     },
     onError: (error: any) => {
       toast({
@@ -110,24 +128,27 @@ export default function BrandsManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!brandName.trim()) return;
+    if (!formData.name.trim()) return;
 
     if (editingBrand) {
-      updateMutation.mutate({ id: editingBrand.id, name: brandName });
+      updateMutation.mutate({ id: editingBrand.id, data: formData });
     } else {
-      createMutation.mutate(brandName);
+      createMutation.mutate(formData);
     }
   };
 
   const handleEdit = (brand: Brand) => {
     setEditingBrand(brand);
-    setBrandName(brand.name);
+    setFormData({
+      name: brand.name,
+      supplier_id: brand.supplier_id,
+    });
     setDialogOpen(true);
   };
 
   const handleNewBrand = () => {
     setEditingBrand(null);
-    setBrandName('');
+    setFormData({ name: '', supplier_id: null });
     setDialogOpen(true);
   };
 
@@ -168,11 +189,28 @@ export default function BrandsManagement() {
                 <Label htmlFor="name">Nome da Marca</Label>
                 <Input
                   id="name"
-                  value={brandName}
-                  onChange={(e) => setBrandName(e.target.value)}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Ex: Samsung, Apple, Nike"
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supplier_id">Fornecedor (Opcional)</Label>
+                <Select
+                  value={formData.supplier_id || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, supplier_id: value === 'none' ? null : value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um fornecedor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {suppliers.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button
@@ -203,6 +241,7 @@ export default function BrandsManagement() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Fornecedor</TableHead>
                 <TableHead>Data de Criação</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -215,6 +254,11 @@ export default function BrandsManagement() {
                       <Package className="h-4 w-4 text-muted-foreground" />
                       {brand.name}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {brand.supplier_id ? (
+                      suppliers.find((s: any) => s.id === brand.supplier_id)?.name || '-'
+                    ) : '-'}
                   </TableCell>
                   <TableCell>
                     {new Date(brand.created_at).toLocaleDateString('pt-BR')}

@@ -20,18 +20,21 @@ export type Database = {
           id: string
           name: string
           organization_id: string
+          supplier_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
           organization_id: string
+          supplier_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
           organization_id?: string
+          supplier_id?: string | null
         }
         Relationships: [
           {
@@ -39,6 +42,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brands_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -118,51 +128,101 @@ export type Database = {
       }
       organizations: {
         Row: {
+          cnpj: string | null
           created_at: string
+          email: string | null
+          endereco: string | null
           id: string
+          matriz_id: string | null
           name: string
+          razao_social: string | null
           settings: Json | null
+          telefone: string | null
+          tipo: string | null
+          whatsapp: string | null
         }
         Insert: {
+          cnpj?: string | null
           created_at?: string
+          email?: string | null
+          endereco?: string | null
           id?: string
+          matriz_id?: string | null
           name: string
+          razao_social?: string | null
           settings?: Json | null
+          telefone?: string | null
+          tipo?: string | null
+          whatsapp?: string | null
         }
         Update: {
+          cnpj?: string | null
           created_at?: string
+          email?: string | null
+          endereco?: string | null
           id?: string
+          matriz_id?: string | null
           name?: string
+          razao_social?: string | null
           settings?: Json | null
+          telefone?: string | null
+          tipo?: string | null
+          whatsapp?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_matriz_id_fkey"
+            columns: ["matriz_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_methods: {
         Row: {
           created_at: string | null
           description: string | null
+          fee_per_installment: Json | null
+          fee_percentage: number | null
           id: string
+          installments_config: Json | null
+          interest_free_installments: number | null
           is_active: boolean | null
+          max_installments: number | null
           name: string
           organization_id: string
+          type: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           description?: string | null
+          fee_per_installment?: Json | null
+          fee_percentage?: number | null
           id?: string
+          installments_config?: Json | null
+          interest_free_installments?: number | null
           is_active?: boolean | null
+          max_installments?: number | null
           name: string
           organization_id: string
+          type?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           description?: string | null
+          fee_per_installment?: Json | null
+          fee_percentage?: number | null
           id?: string
+          installments_config?: Json | null
+          interest_free_installments?: number | null
           is_active?: boolean | null
+          max_installments?: number | null
           name?: string
           organization_id?: string
+          type?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -257,8 +317,8 @@ export type Database = {
       }
       product_discounts: {
         Row: {
-          brand_id: string | null
-          category_id: string | null
+          brand_ids: string[] | null
+          category_ids: string[] | null
           created_at: string | null
           created_by: string | null
           description: string | null
@@ -269,13 +329,14 @@ export type Database = {
           is_active: boolean | null
           name: string
           organization_id: string
-          product_id: string | null
+          product_ids: string[] | null
           start_date: string
+          supplier_id: string | null
           updated_at: string | null
         }
         Insert: {
-          brand_id?: string | null
-          category_id?: string | null
+          brand_ids?: string[] | null
+          category_ids?: string[] | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -286,13 +347,14 @@ export type Database = {
           is_active?: boolean | null
           name: string
           organization_id: string
-          product_id?: string | null
+          product_ids?: string[] | null
           start_date: string
+          supplier_id?: string | null
           updated_at?: string | null
         }
         Update: {
-          brand_id?: string | null
-          category_id?: string | null
+          brand_ids?: string[] | null
+          category_ids?: string[] | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
@@ -303,25 +365,12 @@ export type Database = {
           is_active?: boolean | null
           name?: string
           organization_id?: string
-          product_id?: string | null
+          product_ids?: string[] | null
           start_date?: string
+          supplier_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "product_discounts_brand_id_fkey"
-            columns: ["brand_id"]
-            isOneToOne: false
-            referencedRelation: "brands"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_discounts_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "product_discounts_organization_id_fkey"
             columns: ["organization_id"]
@@ -330,10 +379,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "product_discounts_product_id_fkey"
-            columns: ["product_id"]
+            foreignKeyName: "product_discounts_supplier_id_fkey"
+            columns: ["supplier_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -578,36 +627,45 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           description: string | null
+          html_content: string | null
           id: string
           is_active: boolean | null
           is_default: boolean | null
           name: string
           organization_id: string
+          template_type: string | null
           updated_at: string | null
+          visual_config: Json | null
         }
         Insert: {
           content?: Json | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          html_content?: string | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
           name: string
           organization_id: string
+          template_type?: string | null
           updated_at?: string | null
+          visual_config?: Json | null
         }
         Update: {
           content?: Json | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          html_content?: string | null
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
           name?: string
           organization_id?: string
+          template_type?: string | null
           updated_at?: string | null
+          visual_config?: Json | null
         }
         Relationships: [
           {
@@ -719,6 +777,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          cnpj: string | null
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          organization_id: string
+          phone: string | null
+          razao_social: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          cnpj?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          organization_id: string
+          phone?: string | null
+          razao_social?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          cnpj?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          organization_id?: string
+          phone?: string | null
+          razao_social?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
       }
       tags: {
         Row: {

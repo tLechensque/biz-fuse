@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Building2, Save } from 'lucide-react';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 
@@ -16,6 +17,13 @@ export default function OrganizationSettings() {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     name: '',
+    razao_social: '',
+    cnpj: '',
+    endereco: '',
+    telefone: '',
+    whatsapp: '',
+    email: '',
+    tipo: 'matriz' as 'matriz' | 'filial' | 'independente',
     settings: {} as any,
   });
 
@@ -32,6 +40,13 @@ export default function OrganizationSettings() {
       
       setFormData({
         name: data.name,
+        razao_social: data.razao_social || '',
+        cnpj: data.cnpj || '',
+        endereco: data.endereco || '',
+        telefone: data.telefone || '',
+        whatsapp: data.whatsapp || '',
+        email: data.email || '',
+        tipo: (data.tipo || 'matriz') as 'matriz' | 'filial' | 'independente',
         settings: data.settings || {},
       });
       
@@ -96,18 +111,98 @@ export default function OrganizationSettings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome da Organização</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Nome da empresa"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome Fantasia</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Nome comercial"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="razao_social">Razão Social</Label>
+                  <Input
+                    id="razao_social"
+                    value={formData.razao_social}
+                    onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
+                    placeholder="Razão social completa"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cnpj">CNPJ</Label>
+                  <Input
+                    id="cnpj"
+                    value={formData.cnpj}
+                    onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                    placeholder="00.000.000/0000-00"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="tipo">Tipo de Organização</Label>
+                  <Select
+                    value={formData.tipo}
+                    onValueChange={(value: any) => setFormData({ ...formData, tipo: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="matriz">Matriz</SelectItem>
+                      <SelectItem value="filial">Filial</SelectItem>
+                      <SelectItem value="independente">Independente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="endereco">Endereço</Label>
+                  <Input
+                    id="endereco"
+                    value={formData.endereco}
+                    onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                    placeholder="Endereço completo"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="telefone">Telefone</Label>
+                  <Input
+                    id="telefone"
+                    value={formData.telefone}
+                    onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                    placeholder="(00) 0000-0000"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="whatsapp">WhatsApp</Label>
+                  <Input
+                    id="whatsapp"
+                    value={formData.whatsapp}
+                    onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="contato@empresa.com"
+                  />
+                </div>
               </div>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-4 border-t">
                 <Button type="submit" disabled={updateMutation.isPending}>
                   {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <Save className="h-4 w-4 mr-2" />
