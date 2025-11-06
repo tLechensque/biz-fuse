@@ -165,10 +165,23 @@ export default function PriceTablesManagement() {
     const file = e.target.files?.[0];
     if (!file || !profile?.organization_id) return;
 
+    // Validar tipo de arquivo
     if (file.type !== 'application/pdf') {
       toast({
         title: 'Arquivo inválido',
         description: 'Por favor, envie apenas arquivos PDF',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validar tamanho do arquivo (limite de 100MB)
+    const maxSize = 100 * 1024 * 1024; // 100MB em bytes
+    if (file.size > maxSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      toast({
+        title: 'Arquivo muito grande',
+        description: `O arquivo tem ${sizeMB}MB. O limite é 100MB. Tente comprimir o PDF.`,
         variant: 'destructive',
       });
       return;
@@ -180,23 +193,37 @@ export default function PriceTablesManagement() {
       
       const { data, error: uploadError } = await supabase.storage
         .from('price-lists')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
 
       // Usar o path do arquivo ao invés de URL pública (bucket é privado)
       const fileUrl = fileName;
 
       setFormData({ ...formData, pdf_url: fileUrl });
-      toast({ title: 'PDF enviado com sucesso' });
+      
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      toast({ 
+        title: 'PDF enviado com sucesso',
+        description: `Arquivo de ${sizeMB}MB foi carregado.`
+      });
     } catch (error: any) {
+      console.error('PDF upload error:', error);
       toast({
         title: 'Erro ao enviar PDF',
-        description: error.message,
+        description: error.message || 'Erro desconhecido ao fazer upload do arquivo',
         variant: 'destructive',
       });
     } finally {
       setUploadingPdf(false);
+      // Limpar o input para permitir re-upload do mesmo arquivo
+      e.target.value = '';
     }
   };
 
