@@ -61,13 +61,35 @@ export default function BrandsManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase
+      const { data: newBrand, error } = await supabase
         .from('brands')
-        .insert({ ...data, organization_id: profile?.organization_id });
+        .insert({ ...data, organization_id: profile?.organization_id })
+        .select()
+        .single();
       if (error) throw error;
+
+      // Se fornecedor foi selecionado, atualizar brand_ids do fornecedor
+      if (data.supplier_id && newBrand) {
+        const { data: supplier } = await supabase
+          .from('suppliers')
+          .select('brand_ids')
+          .eq('id', data.supplier_id)
+          .single();
+
+        if (supplier) {
+          const currentBrandIds = supplier.brand_ids || [];
+          const updatedBrandIds = [...currentBrandIds, newBrand.id];
+          await supabase
+            .from('suppliers')
+            .update({ brand_ids: updatedBrandIds })
+            .eq('id', data.supplier_id);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers-list'] });
       toast({ title: 'Marca criada com sucesso' });
       setDialogOpen(false);
       setFormData({ name: '', supplier_id: null });
@@ -83,14 +105,55 @@ export default function BrandsManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      const oldBrand = editingBrand;
+      
       const { error } = await supabase
         .from('brands')
         .update(data)
         .eq('id', id);
       if (error) throw error;
+
+      // Remover marca do fornecedor antigo se mudou
+      if (oldBrand?.supplier_id && oldBrand.supplier_id !== data.supplier_id) {
+        const { data: oldSupplier } = await supabase
+          .from('suppliers')
+          .select('brand_ids')
+          .eq('id', oldBrand.supplier_id)
+          .single();
+
+        if (oldSupplier) {
+          const updatedBrandIds = (oldSupplier.brand_ids || []).filter((bid: string) => bid !== id);
+          await supabase
+            .from('suppliers')
+            .update({ brand_ids: updatedBrandIds })
+            .eq('id', oldBrand.supplier_id);
+        }
+      }
+
+      // Adicionar marca ao novo fornecedor
+      if (data.supplier_id && data.supplier_id !== oldBrand?.supplier_id) {
+        const { data: newSupplier } = await supabase
+          .from('suppliers')
+          .select('brand_ids')
+          .eq('id', data.supplier_id)
+          .single();
+
+        if (newSupplier) {
+          const currentBrandIds = newSupplier.brand_ids || [];
+          if (!currentBrandIds.includes(id)) {
+            const updatedBrandIds = [...currentBrandIds, id];
+            await supabase
+              .from('suppliers')
+              .update({ brand_ids: updatedBrandIds })
+              .eq('id', data.supplier_id);
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['brands'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers-list'] });
       toast({ title: 'Marca atualizada com sucesso' });
       setDialogOpen(false);
       setEditingBrand(null);

@@ -124,6 +124,50 @@ const ProductsPage = () => {
     },
   });
 
+  // Query para buscar descontos ativos
+  const { data: discounts = [] } = useQuery({
+    queryKey: ['active-discounts'],
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('product_discounts')
+        .select('*')
+        .eq('is_active', true)
+        .lte('start_date', now)
+        .gte('end_date', now);
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Função para calcular desconto de um produto
+  const getProductDiscount = (product: Product) => {
+    const applicableDiscounts = discounts.filter((discount: any) => {
+      // Verifica se o desconto se aplica ao produto
+      if (discount.product_ids?.includes(product.id)) return true;
+      if (discount.brand_ids?.includes(product.brand_id)) return true;
+      if (discount.category_ids?.includes(product.category_id)) return true;
+      return false;
+    });
+
+    if (applicableDiscounts.length === 0) return null;
+
+    // Usa o maior desconto aplicável
+    const bestDiscount = applicableDiscounts.reduce((max: any, current: any) => 
+      (current.discount_percentage > max.discount_percentage) ? current : max
+    );
+
+    const discountAmount = product.sell_price * (bestDiscount.discount_percentage / 100);
+    const finalPrice = product.sell_price - discountAmount;
+
+    return {
+      ...bestDiscount,
+      finalPrice,
+      discountAmount,
+    };
+  };
+
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
       const { error } = await supabase
@@ -275,109 +319,155 @@ const ProductsPage = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product) => (
-          <Card key={product.id} className="group hover:shadow-md transition-all duration-200 overflow-hidden">
-            {/* Product Image */}
-            <div className="aspect-video bg-muted relative">
-              {product.image_urls && product.image_urls.length > 0 ? (
-                <img
-                  src={product.image_urls[0]}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Package className="h-12 w-12 text-muted-foreground" />
-                </div>
-              )}
-              {/* Image count indicator */}
-              {product.image_urls && product.image_urls.length > 1 && (
-                <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                  +{product.image_urls.length - 1}
-                </div>
-              )}
-              {/* Action buttons overlay */}
-              <div className="absolute top-2 left-2 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleEditProduct(product)}
-                  className="h-8 w-8 p-0"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="secondary" size="sm" className="h-8 w-8 p-0">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Excluir produto</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tem certeza que deseja excluir o produto "{product.name}"? 
-                        Esta ação não pode ser desfeita.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => deleteProductMutation.mutate(product.id)}
-                        className="bg-destructive hover:bg-destructive/90"
-                      >
-                        Excluir
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg line-clamp-1">{product.name}</CardTitle>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {product.sku && (
-                  <span>SKU: {product.sku}</span>
+        {products.map((product) => {
+          const discount = getProductDiscount(product);
+          
+          return (
+            <Card key={product.id} className="group hover:shadow-md transition-all duration-200 overflow-hidden">
+              {/* Product Image */}
+              <div className="aspect-video bg-muted relative">
+                {product.image_urls && product.image_urls.length > 0 ? (
+                  <img
+                    src={product.image_urls[0]}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Package className="h-12 w-12 text-muted-foreground" />
+                  </div>
                 )}
-                {product.brand && (
-                  <>
-                    {product.sku && <span>•</span>}
-                    <span>{product.brand}</span>
-                  </>
+                {/* Discount badge */}
+                {discount && (
+                  <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground text-xs font-bold px-2 py-1 rounded">
+                    -{discount.discount_percentage}%
+                  </div>
                 )}
+                {/* Image count indicator */}
+                {!discount && product.image_urls && product.image_urls.length > 1 && (
+                  <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    +{product.image_urls.length - 1}
+                  </div>
+                )}
+                {/* Action buttons overlay */}
+                <div className="absolute top-2 left-2 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleEditProduct(product)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="secondary" size="sm" className="h-8 w-8 p-0">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir produto</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir o produto "{product.name}"? 
+                          Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteProductMutation.mutate(product.id)}
+                          className="bg-destructive hover:bg-destructive/90"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
-            </CardHeader>
 
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                {product.simple_description}
-              </p>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Custo:</span>
-                  <span className="font-medium">{formatCurrency(product.cost_price)}</span>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg line-clamp-1">{product.name}</CardTitle>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {product.sku && (
+                    <span>SKU: {product.sku}</span>
+                  )}
+                  {product.brand && (
+                    <>
+                      {product.sku && <span>•</span>}
+                      <span>{product.brand}</span>
+                    </>
+                  )}
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Venda:</span>
-                  <span className="font-semibold text-primary">
-                    {formatCurrency(product.sell_price)}
-                  </span>
+                {discount && (
+                  <div className="mt-2 p-2 bg-destructive/10 rounded border border-destructive/20">
+                    <p className="text-xs font-semibold text-destructive mb-1">
+                      🎉 Desconto Especial Ativo
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {discount.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Válido até {new Date(discount.end_date).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                )}
+              </CardHeader>
+
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                  {product.simple_description}
+                </p>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Custo:</span>
+                    <span className="font-medium">{formatCurrency(product.cost_price)}</span>
+                  </div>
+                  {discount ? (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Preço Normal:</span>
+                        <span className="font-medium line-through text-muted-foreground">
+                          {formatCurrency(product.sell_price)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Preço Promocional:</span>
+                        <span className="font-bold text-destructive text-base">
+                          {formatCurrency(discount.finalPrice)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Economia:</span>
+                        <span className="font-semibold text-green-600">
+                          {formatCurrency(discount.discountAmount)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Venda:</span>
+                      <span className="font-semibold text-primary">
+                        {formatCurrency(product.sell_price)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Margem:</span>
+                    <span className={`font-medium ${(((product.sell_price - product.cost_price) / product.sell_price) * 100) < 35 ? 'text-destructive' : 'text-green-600'}`}>
+                      {(((product.sell_price - product.cost_price) / product.sell_price) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Estoque:</span>
+                    <span className="font-medium">{product.stock || 0} un</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Margem:</span>
-                  <span className={`font-medium ${(((product.sell_price - product.cost_price) / product.sell_price) * 100) < 35 ? 'text-destructive' : 'text-green-600'}`}>
-                    {(((product.sell_price - product.cost_price) / product.sell_price) * 100).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Estoque:</span>
-                  <span className="font-medium">{product.stock || 0} un</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {products.length === 0 && (
