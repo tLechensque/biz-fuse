@@ -17,6 +17,7 @@ export type Database = {
       brands: {
         Row: {
           created_at: string
+          discount_percentage: number | null
           id: string
           name: string
           organization_id: string
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          discount_percentage?: number | null
           id?: string
           name: string
           organization_id: string
@@ -31,6 +33,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          discount_percentage?: number | null
           id?: string
           name?: string
           organization_id?: string
@@ -512,6 +515,7 @@ export type Database = {
           unit: string | null
           unit_id: string | null
           updated_at: string
+          use_fixed_pricing: boolean | null
           user_id: string | null
           video_url: string | null
         }
@@ -534,6 +538,7 @@ export type Database = {
           unit?: string | null
           unit_id?: string | null
           updated_at?: string
+          use_fixed_pricing?: boolean | null
           user_id?: string | null
           video_url?: string | null
         }
@@ -556,6 +561,7 @@ export type Database = {
           unit?: string | null
           unit_id?: string | null
           updated_at?: string
+          use_fixed_pricing?: boolean | null
           user_id?: string | null
           video_url?: string | null
         }

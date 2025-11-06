@@ -17,6 +17,7 @@ interface Brand {
   id: string;
   name: string;
   supplier_id: string | null;
+  discount_percentage: number;
   created_at: string;
 }
 
@@ -29,6 +30,7 @@ export default function BrandsManagement() {
   const [formData, setFormData] = useState({
     name: '',
     supplier_id: null as string | null,
+    discount_percentage: 0,
   });
 
   const { data: suppliers = [] } = useQuery({
@@ -92,7 +94,7 @@ export default function BrandsManagement() {
       queryClient.invalidateQueries({ queryKey: ['suppliers-list'] });
       toast({ title: 'Marca criada com sucesso' });
       setDialogOpen(false);
-      setFormData({ name: '', supplier_id: null });
+      setFormData({ name: '', supplier_id: null, discount_percentage: 0 });
     },
     onError: (error: any) => {
       toast({
@@ -157,7 +159,7 @@ export default function BrandsManagement() {
       toast({ title: 'Marca atualizada com sucesso' });
       setDialogOpen(false);
       setEditingBrand(null);
-      setFormData({ name: '', supplier_id: null });
+      setFormData({ name: '', supplier_id: null, discount_percentage: 0 });
     },
     onError: (error: any) => {
       toast({
@@ -205,13 +207,14 @@ export default function BrandsManagement() {
     setFormData({
       name: brand.name,
       supplier_id: brand.supplier_id,
+      discount_percentage: brand.discount_percentage || 0,
     });
     setDialogOpen(true);
   };
 
   const handleNewBrand = () => {
     setEditingBrand(null);
-    setFormData({ name: '', supplier_id: null });
+    setFormData({ name: '', supplier_id: null, discount_percentage: 0 });
     setDialogOpen(true);
   };
 
@@ -275,6 +278,22 @@ export default function BrandsManagement() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="discount_percentage">Desconto Padrão (%)</Label>
+                <Input
+                  id="discount_percentage"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.discount_percentage}
+                  onChange={(e) => setFormData({ ...formData, discount_percentage: parseFloat(e.target.value) || 0 })}
+                  placeholder="Ex: 50 para 50% de desconto"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Desconto aplicado sobre o valor de venda para calcular o custo automaticamente
+                </p>
+              </div>
               <div className="flex gap-2 justify-end">
                 <Button
                   type="button"
@@ -305,6 +324,7 @@ export default function BrandsManagement() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Fornecedor</TableHead>
+                <TableHead>Desconto Padrão</TableHead>
                 <TableHead>Data de Criação</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -322,6 +342,11 @@ export default function BrandsManagement() {
                     {brand.supplier_id ? (
                       suppliers.find((s: any) => s.id === brand.supplier_id)?.name || '-'
                     ) : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-medium text-primary">
+                      {brand.discount_percentage}%
+                    </span>
                   </TableCell>
                   <TableCell>
                     {new Date(brand.created_at).toLocaleDateString('pt-BR')}

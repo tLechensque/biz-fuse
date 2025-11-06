@@ -32,6 +32,7 @@ export interface Product {
   organization_id: string;
   created_at: string;
   updated_at: string;
+  use_fixed_pricing?: boolean;
 }
 
 const ProductsPage = () => {
@@ -63,7 +64,7 @@ const ProductsPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brands')
-        .select('id, name')
+        .select('id, name, discount_percentage')
         .order('name');
       if (error) throw error;
       return data;
@@ -158,13 +159,23 @@ const ProductsPage = () => {
       (current.discount_percentage > max.discount_percentage) ? current : max
     );
 
+    // Calcula o preço de venda promocional
     const discountAmount = product.sell_price * (bestDiscount.discount_percentage / 100);
-    const finalPrice = product.sell_price - discountAmount;
+    const promotionalSellPrice = product.sell_price - discountAmount;
+    
+    // Se o produto não usa preço fixo e tem marca com desconto, calcula o custo promocional
+    let promotionalCostPrice = product.cost_price;
+    const productBrand = brands.find((b: any) => b.id === product.brand_id);
+    
+    if (!product.use_fixed_pricing && productBrand && productBrand.discount_percentage > 0) {
+      promotionalCostPrice = promotionalSellPrice * (1 - productBrand.discount_percentage / 100);
+    }
 
     return {
       ...bestDiscount,
-      finalPrice,
+      finalPrice: promotionalSellPrice,
       discountAmount,
+      promotionalCostPrice,
     };
   };
 
@@ -419,41 +430,49 @@ const ProductsPage = () => {
                 <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                   {product.simple_description}
                 </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Custo:</span>
-                    <span className="font-medium">{formatCurrency(product.cost_price)}</span>
-                  </div>
-                  {discount ? (
-                    <>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Custo:</span>
+                      <span className="font-medium">{formatCurrency(product.cost_price)}</span>
+                    </div>
+                    {discount ? (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Preço Normal:</span>
+                          <span className="font-medium line-through text-muted-foreground">
+                            {formatCurrency(product.sell_price)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Preço Promocional:</span>
+                          <span className="font-bold text-destructive text-base">
+                            {formatCurrency(discount.finalPrice)}
+                          </span>
+                        </div>
+                        {discount.promotionalCostPrice && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Custo Promocional:</span>
+                            <span className="font-medium text-primary">
+                              {formatCurrency(discount.promotionalCostPrice)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Economia:</span>
+                          <span className="font-semibold text-green-600">
+                            {formatCurrency(discount.discountAmount)}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Preço Normal:</span>
-                        <span className="font-medium line-through text-muted-foreground">
+                        <span className="text-muted-foreground">Venda:</span>
+                        <span className="font-semibold text-primary">
                           {formatCurrency(product.sell_price)}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Preço Promocional:</span>
-                        <span className="font-bold text-destructive text-base">
-                          {formatCurrency(discount.finalPrice)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Economia:</span>
-                        <span className="font-semibold text-green-600">
-                          {formatCurrency(discount.discountAmount)}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
+                    )}
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Venda:</span>
-                      <span className="font-semibold text-primary">
-                        {formatCurrency(product.sell_price)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Margem:</span>
                     <span className={`font-medium ${(((product.sell_price - product.cost_price) / product.sell_price) * 100) < 35 ? 'text-destructive' : 'text-green-600'}`}>
                       {(((product.sell_price - product.cost_price) / product.sell_price) * 100).toFixed(1)}%

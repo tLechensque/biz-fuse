@@ -29,6 +29,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
     category_id: product?.category_id || '',
     brand_id: product?.brand_id || '',
     unit_id: product?.unit_id || '',
+    use_fixed_pricing: product?.use_fixed_pricing || false,
   });
   
   const [imageUrls, setImageUrls] = useState<string[]>(product?.image_urls || []);
@@ -92,6 +93,17 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
       return data;
     },
   });
+
+  // Buscar desconto da marca selecionada e calcular custo automaticamente
+  const selectedBrand = brands.find((b: any) => b.id === formData.brand_id);
+  
+  useEffect(() => {
+    if (!formData.use_fixed_pricing && selectedBrand && formData.sell_price > 0) {
+      const discountPercentage = selectedBrand.discount_percentage || 0;
+      const calculatedCost = formData.sell_price * (1 - discountPercentage / 100);
+      setFormData(prev => ({ ...prev, cost_price: Number(calculatedCost.toFixed(2)) }));
+    }
+  }, [formData.sell_price, formData.brand_id, formData.use_fixed_pricing, selectedBrand]);
 
   const { data: units = [] } = useQuery({
     queryKey: ['units'],
@@ -203,6 +215,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
         video_url: data.video_url || null,
         organization_id: profile.organization_id,
         image_urls: imageUrls,
+        use_fixed_pricing: data.use_fixed_pricing,
       };
 
       if (product) {
@@ -469,20 +482,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="cost_price">Preço de Custo *</Label>
-          <Input
-            id="cost_price"
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.cost_price}
-            onChange={(e) => handleInputChange('cost_price', parseFloat(e.target.value) || 0)}
-            placeholder="0,00"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor="sell_price">Preço de Venda *</Label>
           <Input
             id="sell_price"
@@ -497,10 +496,48 @@ export const ProductForm: React.FC<ProductFormProps> = ({ product, onClose }) =>
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="cost_price">Preço de Custo *</Label>
+          <Input
+            id="cost_price"
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.cost_price}
+            onChange={(e) => handleInputChange('cost_price', parseFloat(e.target.value) || 0)}
+            placeholder="0,00"
+            required
+            disabled={!formData.use_fixed_pricing && !!selectedBrand}
+          />
+          {!formData.use_fixed_pricing && selectedBrand && (
+            <p className="text-xs text-muted-foreground">
+              Calculado automaticamente: {selectedBrand.discount_percentage}% de desconto
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
           <Label>Margem</Label>
           <div className={`p-2 rounded border ${parseFloat(margin) < 35 ? 'bg-destructive/10 text-destructive' : 'bg-accent/10 text-accent'}`}>
             {margin}%
           </div>
+        </div>
+      </div>
+
+      <div className="flex items-center space-x-2 p-4 bg-muted/50 rounded-lg">
+        <input
+          type="checkbox"
+          id="use_fixed_pricing"
+          checked={formData.use_fixed_pricing}
+          onChange={(e) => setFormData(prev => ({ ...prev, use_fixed_pricing: e.target.checked }))}
+          className="h-4 w-4 rounded border-input"
+        />
+        <div>
+          <Label htmlFor="use_fixed_pricing" className="cursor-pointer font-medium">
+            Usar preço fixo
+          </Label>
+          <p className="text-xs text-muted-foreground mt-1">
+            Marque esta opção se o custo for fixo. Caso contrário, será calculado automaticamente com base no desconto da marca.
+          </p>
         </div>
       </div>
 
