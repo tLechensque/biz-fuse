@@ -77,12 +77,16 @@ export function PaymentConditionsEditor({ form }: Props) {
     if (method) {
       form.setValue(`paymentConditions.${index}.methodId`, methodId);
       form.setValue(`paymentConditions.${index}.methodName`, method.name);
-      form.setValue(`paymentConditions.${index}.paymentType`, method.type || (method.name?.toLowerCase().includes('pix') ? 'pix' : 'other'));
+      
+      // Use provider_type (more specific) instead of type
+      const paymentType = method.provider_type || method.type || 'other';
+      form.setValue(`paymentConditions.${index}.paymentType`, paymentType);
       form.setValue(`paymentConditions.${index}.brand`, '');
       
-      // Reset parcels
+      // Reset parcels - check if it's a card/maquininha type
+      const supportsInstallments = paymentType === 'card' || paymentType === 'maquininha' || paymentType === 'financing';
       const max = method.max_installments || 1;
-      const installments = max > 1 && (method.type === 'card' || method.type === 'financing') ? 1 : 1;
+      const installments = supportsInstallments && max > 1 ? 1 : 1;
       form.setValue(`paymentConditions.${index}.installments`, installments);
       form.setValue(`paymentConditions.${index}.installmentValue`, total / installments);
       form.setValue(`paymentConditions.${index}.totalValue`, total);
@@ -182,8 +186,9 @@ export function PaymentConditionsEditor({ form }: Props) {
             const availableBrands = method?.card_brands_config ? Object.keys(method.card_brands_config as any) : [];
             
             // Determinar se o método aceita parcelamento
+            const paymentType = method?.provider_type || method?.type || 'other';
             const supportsInstallments = method && 
-              (method.type === 'card' || method.type === 'financing') &&
+              (paymentType === 'card' || paymentType === 'maquininha' || paymentType === 'financing') &&
               (method.max_installments || 1) > 1;
             
             // Get max installments (considerando marca escolhida)

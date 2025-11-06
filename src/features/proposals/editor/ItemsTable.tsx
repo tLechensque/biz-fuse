@@ -22,7 +22,9 @@ import {
 } from '@/components/ui/select';
 import { ProposalEditorForm } from './proposal-editor-schema';
 import { ProductSearchDialog } from './ProductSearchDialog';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useProfile } from '@/hooks/useProfile';
 
 interface Props {
   form: UseFormReturn<ProposalEditorForm>;
@@ -30,14 +32,37 @@ interface Props {
 }
 
 export function ItemsTable({ form, sectionIndex }: Props) {
+  const { profile } = useProfile();
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [upgradeTargetIndex, setUpgradeTargetIndex] = useState<number | null>(null);
+  const [activeDiscounts, setActiveDiscounts] = useState<any[]>([]);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: `sections.${sectionIndex}.items`,
   });
+
+  // Fetch active discounts
+  useEffect(() => {
+    if (!profile?.organization_id) return;
+    
+    const fetchDiscounts = async () => {
+      const { data, error } = await supabase
+        .from('product_discounts')
+        .select('*')
+        .eq('organization_id', profile.organization_id)
+        .eq('is_active', true)
+        .lte('start_date', new Date().toISOString())
+        .gte('end_date', new Date().toISOString());
+      
+      if (!error && data) {
+        setActiveDiscounts(data);
+      }
+    };
+    
+    fetchDiscounts();
+  }, [profile?.organization_id]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -55,10 +80,40 @@ export function ItemsTable({ form, sectionIndex }: Props) {
     const brandId = product.brand_id ?? product.brandId ?? product.brands?.id ?? '';
     const brandName = product.brand ?? product.brandName ?? product.brands?.name ?? '';
     const imageUrl = product.image_urls?.[0] ?? product.image_url ?? product.imageUrl ?? '';
+    const productId = product.id ?? product.productId;
+    const categoryId = product.category_id ?? product.categoryId ?? '';
+
+    // Check if there's an active discount for this product
+    let discountEnabled = false;
+    let discountValue = 0;
+    const applicableDiscount = activeDiscounts.find(discount => {
+      // Check if discount applies to this specific product
+      if (discount.product_ids && discount.product_ids.includes(productId)) {
+        return true;
+      }
+      // Check if discount applies to this product's brand
+      if (brandId && discount.brand_ids && discount.brand_ids.includes(brandId)) {
+        return true;
+      }
+      // Check if discount applies to this product's category
+      if (categoryId && discount.category_ids && discount.category_ids.includes(categoryId)) {
+        return true;
+      }
+      return false;
+    });
+
+    if (applicableDiscount) {
+      discountEnabled = true;
+      discountValue = applicableDiscount.discount_percentage || 0;
+    }
+
+    const baseSubtotal = sellPrice * 1;
+    const discountAmount = discountEnabled ? baseSubtotal * (discountValue / 100) : 0;
+    const subtotal = baseSubtotal - discountAmount;
 
     append({
       id: crypto.randomUUID(),
-      productId: product.id ?? product.productId,
+      productId,
       productName: product.name ?? product.productName ?? 'Produto',
       brandId,
       brandName,
@@ -67,10 +122,10 @@ export function ItemsTable({ form, sectionIndex }: Props) {
       qty: 1,
       unitPrice: sellPrice,
       costPrice,
-      discountEnabled: false,
+      discountEnabled,
       discountType: 'percentage',
-      discountValue: 0,
-      subtotal: sellPrice,
+      discountValue,
+      subtotal,
       simpleDescription: product.simple_description ?? product.simpleDescription ?? '',
       detailedDescription: product.full_description ?? product.detailedDescription ?? '',
       imageUrl,
