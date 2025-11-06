@@ -25,6 +25,9 @@ import TemplateEditor from "./pages/templates/TemplateEditor";
 import TemplateEditorV2 from "./pages/templates-v2/TemplateEditorV2";
 import PreviewV2 from "./pages/templates-v2/PreviewV2";
 import ProposalPreview from "./pages/preview/ProposalPreview";
+import ProposalEditorPage from "./pages/proposals/ProposalEditorPage";
+import BriefingsPage from "./pages/briefings/BriefingsPage";
+import PropostasV2Page from "./pages/propostas-v2/PropostasV2Page";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProfileSetup } from "./components/ProfileSetup";
 import { ProtectedLayout } from "./components/layout/ProtectedLayout";
@@ -58,18 +61,15 @@ const App = () => (
               {/* Protected routes with Layout */}
               <Route element={<ProtectedLayout />}>
                 <Route path="/proposals" element={<Proposals />} />
+                <Route path="/proposals/:id/edit" element={<ProposalEditorPage />} />
+                <Route path="/briefing" element={<BriefingsPage />} />
+                <Route path="/propostas-v2" element={<PropostasV2Page />} />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/clients" element={<ClientsPage />} />
                 <Route path="/kits" element={
                   <div className="p-6">
                     <h1 className="text-3xl font-bold mb-4">Kits</h1>
                     <p className="text-muted-foreground">Módulo de kits em desenvolvimento...</p>
-                  </div>
-                } />
-                <Route path="/briefing" element={
-                  <div className="p-6">
-                    <h1 className="text-3xl font-bold mb-4">Briefing</h1>
-                    <p className="text-muted-foreground">Módulo de briefing em desenvolvimento...</p>
                   </div>
                 } />
                 <Route path="/templates" element={<TemplatesManagement />} />

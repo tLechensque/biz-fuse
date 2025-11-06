@@ -135,7 +135,7 @@ export default function Proposals() {
             Gerencie e acompanhe suas propostas comerciais
           </p>
         </div>
-        <Button className="gradient-primary text-white">
+        <Button className="gradient-primary text-white" onClick={() => navigate('/proposals/new/edit')}>
           <Plus className="w-4 h-4 mr-2" />
           Nova Proposta
         </Button>
@@ -232,7 +232,7 @@ export default function Proposals() {
                           <Eye className="w-4 h-4 mr-2" />
                           Visualizar Preview
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/proposals/${proposal.id}/edit`)}>
                           <Edit className="w-4 h-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
