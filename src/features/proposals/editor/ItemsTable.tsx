@@ -47,7 +47,10 @@ export function ItemsTable({ form, sectionIndex }: Props) {
   };
 
   const handleAddProduct = (product: any) => {
-    const newItem = {
+    const sellPrice = Number(product.sell_price || 0);
+    const costPrice = Number(product.cost_price || 0);
+    
+    append({
       id: crypto.randomUUID(),
       productId: product.id,
       productName: product.name,
@@ -56,24 +59,30 @@ export function ItemsTable({ form, sectionIndex }: Props) {
       model: product.model || '',
       sku: product.sku || '',
       qty: 1,
-      unitPrice: Number(product.sell_price || 0),
-      costPrice: Number(product.cost_price || 0),
+      unitPrice: sellPrice,
+      costPrice: costPrice,
       discountEnabled: false,
       discountType: 'percentage' as const,
       discountValue: 0,
-      subtotal: Number(product.sell_price || 0),
+      subtotal: sellPrice,
       simpleDescription: product.simple_description || '',
       detailedDescription: product.full_description || '',
       imageUrl: product.image_urls?.[0] || product.image_url || '',
-    };
-    append(newItem);
+    });
+    
     setShowProductSearch(false);
-    setTimeout(() => updateSectionSubtotal(), 100);
+    
+    // Atualizar subtotal após um pequeno delay para garantir que o item foi adicionado
+    setTimeout(() => {
+      const items = form.getValues(`sections.${sectionIndex}.items`);
+      const subtotal = items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
+      form.setValue(`sections.${sectionIndex}.subtotal`, subtotal, { shouldDirty: true });
+    }, 50);
   };
 
   const handleRemove = (index: number) => {
     remove(index);
-    updateSectionSubtotal();
+    setTimeout(() => updateSectionSubtotal(), 50);
   };
 
   const updateItemSubtotal = (itemIndex: number) => {
@@ -153,22 +162,22 @@ export function ItemsTable({ form, sectionIndex }: Props) {
             </TableHeader>
             <TableBody>
               {fields.map((field, index) => {
-                const item = form.watch(`sections.${sectionIndex}.items.${index}`);
+                const item = form.watch(`sections.${sectionIndex}.items.${index}`) || field;
                 return (
                   <TableRow key={field.id}>
                     <TableCell>
-                      {item.imageUrl && (
+                      {item?.imageUrl && (
                         <img
                           src={item.imageUrl}
-                          alt={item.productName}
+                          alt={item.productName || 'Produto'}
                           className="w-10 h-10 object-cover rounded"
                         />
                       )}
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        <p className="font-medium">{item.productName}</p>
-                        {item.simpleDescription && (
+                        <p className="font-medium">{item?.productName || 'Sem nome'}</p>
+                        {item?.simpleDescription && (
                           <p className="text-xs text-muted-foreground line-clamp-2">
                             {item.simpleDescription}
                           </p>
@@ -176,7 +185,7 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {item.brandName && (
+                      {item?.brandName && (
                         <Badge variant="outline">{item.brandName}</Badge>
                       )}
                     </TableCell>
@@ -265,9 +274,9 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                     </TableCell>
                     <TableCell>
                       <div className="font-semibold">
-                        {formatCurrency(item.subtotal)}
+                        {formatCurrency(item?.subtotal || 0)}
                       </div>
-                      {item.upgradeProductName && (
+                      {item?.upgradeProductName && (
                         <div className="text-xs text-muted-foreground mt-1">
                           + Upgrade: {item.upgradeProductName} (+{formatCurrency(item.upgradeDelta || 0)})
                         </div>
