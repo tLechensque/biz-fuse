@@ -143,3 +143,66 @@ export function getVariablesByGroup(): Record<string, VariableDefinition[]> {
     return acc;
   }, {} as Record<string, VariableDefinition[]>);
 }
+
+// Interface para grupos de variáveis (para autocomplete e export)
+export interface VariableGroup {
+  label: string;
+  variables: Array<{
+    key: string;
+    description: string;
+    example?: string;
+  }>;
+}
+
+// Grupos de variáveis formatados para export e autocomplete
+export const VARIABLE_GROUPS: VariableGroup[] = [
+  {
+    label: 'Proposta',
+    variables: [
+      { key: 'proposal.code', description: 'Código/número da proposta', example: 'PROP-001' },
+      { key: 'proposal.title', description: 'Título da proposta', example: 'Sistema de Automação Residencial' },
+      { key: 'proposal.issueDate', description: 'Data de emissão', example: '2024-01-15' },
+      { key: 'proposal.validityDays', description: 'Dias de validade', example: '15' },
+      { key: 'proposal.version', description: 'Versão da proposta', example: '1' },
+    ],
+  },
+  {
+    label: 'Organização',
+    variables: [
+      { key: 'organization.name', description: 'Nome da organização', example: 'Starvai Tecnologia' },
+      { key: 'organization.email', description: 'E-mail da organização', example: 'contato@starvai.com' },
+      { key: 'organization.phone', description: 'Telefone da organização', example: '(11) 9999-9999' },
+      { key: 'organization.whatsapp', description: 'WhatsApp da organização', example: '(11) 99999-9999' },
+      { key: 'organization.cnpj', description: 'CNPJ da organização', example: '00.000.000/0001-00' },
+      { key: 'organization.address', description: 'Endereço completo da organização' },
+    ],
+  },
+  {
+    label: 'Cliente',
+    variables: [
+      { key: 'client.name', description: 'Nome do cliente', example: 'João Silva' },
+      { key: 'client.email', description: 'E-mail do cliente', example: 'joao@email.com' },
+      { key: 'client.phone', description: 'Telefone do cliente', example: '(11) 9999-9999' },
+      { key: 'client.address', description: 'Endereço do cliente' },
+      { key: 'client.city', description: 'Cidade do cliente', example: 'São Paulo' },
+      { key: 'client.state', description: 'Estado do cliente', example: 'SP' },
+    ],
+  },
+  {
+    label: 'Vendedor',
+    variables: [
+      { key: 'salesperson.name', description: 'Nome do vendedor', example: 'Maria Santos' },
+      { key: 'salesperson.email', description: 'E-mail do vendedor' },
+      { key: 'salesperson.phone', description: 'Telefone do vendedor' },
+    ],
+  },
+  {
+    label: 'Totais',
+    variables: [
+      { key: 'totals.subtotal', description: 'Subtotal dos itens', example: 'R$ 15.000,00' },
+      { key: 'totals.upgradesTotal', description: 'Total de upgrades', example: 'R$ 2.500,00' },
+      { key: 'totals.total', description: 'Valor total', example: 'R$ 17.500,00' },
+      { key: 'totals.margin', description: 'Margem de lucro' },
+    ],
+  },
+];

@@ -93,6 +93,10 @@ export const BlockTypeSchema = z.enum([
   'Payment',
   'Notes',
   'Acceptance',
+  'TextContent',
+  'AboutCompany',
+  'Services',
+  'BackCover',
 ]);
 
 export const BlockSchema = z.object({
@@ -100,21 +104,52 @@ export const BlockSchema = z.object({
   props: z.record(z.any()).optional(),
 });
 
+// Layout settings para cabeçalho/rodapé e espaçamentos
+export const LayoutSettingsSchema = z.object({
+  header: z.object({
+    enabled: z.boolean().default(false),
+    content: z.string().optional(),
+    height: z.string().default('60px'),
+  }).optional(),
+  footer: z.object({
+    enabled: z.boolean().default(false),
+    content: z.string().optional(),
+    height: z.string().default('60px'),
+  }).optional(),
+  pageMargin: z.string().default('18mm'),
+  blockSpacing: z.string().default('24px'),
+});
+
+// Theme expandido com mais opções
 export const ThemeSchema = z.object({
+  // Cores
   primary: z.string().default('#0E121B'),
   accent: z.string().default('#2B6CB0'),
   soft: z.string().default('#F4F6F9'),
+  
+  // Tipografia
+  fontFamily: z.string().default('Inter, system-ui, sans-serif'),
+  fontSizeBase: z.string().default('10pt'),
+  fontSizeH1: z.string().default('28pt'),
+  fontSizeH2: z.string().default('18pt'),
+  lineHeight: z.string().default('1.5'),
+  
+  // Espaçamentos
+  borderRadius: z.string().default('8px'),
+  cardPadding: z.string().default('16px'),
 });
 
 export const TemplateLayoutSchema = z.object({
   name: z.string(),
   theme: ThemeSchema.optional(),
+  layout: LayoutSettingsSchema.optional(),
   blocks: z.array(BlockSchema),
 });
 
 export type BlockType = z.infer<typeof BlockTypeSchema>;
 export type Block = z.infer<typeof BlockSchema>;
 export type Theme = z.infer<typeof ThemeSchema>;
+export type LayoutSettings = z.infer<typeof LayoutSettingsSchema>;
 export type TemplateLayout = z.infer<typeof TemplateLayoutSchema>;
 
 // ===== Render Context =====

@@ -6,6 +6,10 @@ import { Totals } from '../blocks/Totals';
 import { Payment } from '../blocks/Payment';
 import { Notes } from '../blocks/Notes';
 import { Acceptance } from '../blocks/Acceptance';
+import { TextContent } from '../blocks/TextContent';
+import { AboutCompany } from '../blocks/AboutCompany';
+import { Services } from '../blocks/Services';
+import { BackCover } from '../blocks/BackCover';
 
 // Registry de blocos: mapeia tipo para componente
 export const BLOCK_REGISTRY: Record<BlockType, React.ComponentType<any>> = {
@@ -16,6 +20,10 @@ export const BLOCK_REGISTRY: Record<BlockType, React.ComponentType<any>> = {
   Payment,
   Notes,
   Acceptance,
+  TextContent,
+  AboutCompany,
+  Services,
+  BackCover,
 };
 
 // Metadados dos blocos para o editor
@@ -38,6 +46,45 @@ export const BLOCK_METADATA: BlockMetadata[] = [
       title: '{{proposal.title}}',
       subtitle: 'Pedido #{{proposal.code}} · Data {{proposal.issueDate}} · Validade {{proposal.validityDays}} dias úteis',
       showClient: true,
+    },
+  },
+  {
+    type: 'TextContent',
+    label: 'Texto Livre',
+    description: 'Seção de conteúdo personalizado com texto livre',
+    icon: 'AlignLeft',
+    defaultProps: {
+      title: 'Título da Seção',
+      content: '<p>Adicione seu conteúdo aqui. Você pode usar variáveis como {{organization.name}}.</p>',
+      alignment: 'left',
+    },
+  },
+  {
+    type: 'AboutCompany',
+    label: 'Sobre a Empresa',
+    description: 'Apresentação da empresa com logo e descrição',
+    icon: 'Building2',
+    defaultProps: {
+      title: 'Sobre a Empresa',
+      showLogo: true,
+      content: '<p>A <strong>{{organization.name}}</strong> é especializada em soluções de tecnologia e automação.</p>',
+    },
+  },
+  {
+    type: 'Services',
+    label: 'Serviços',
+    description: 'Lista de serviços oferecidos',
+    icon: 'Briefcase',
+    defaultProps: {
+      title: 'Nossos Serviços',
+      layout: 'list',
+      services: [
+        'Instalação e Configuração',
+        'Suporte Técnico',
+        'Manutenção',
+        'Treinamento',
+        'Consultoria',
+      ],
     },
   },
   {
@@ -79,5 +126,15 @@ export const BLOCK_METADATA: BlockMetadata[] = [
     label: 'Aceite',
     description: 'Área de assinatura e validade da proposta',
     icon: 'CheckSquare',
+  },
+  {
+    type: 'BackCover',
+    label: 'Contracapa',
+    description: 'Página final com informações de contato',
+    icon: 'FileCheck',
+    defaultProps: {
+      showContact: true,
+      content: '<p>Obrigado pela confiança!</p>',
+    },
   },
 ];

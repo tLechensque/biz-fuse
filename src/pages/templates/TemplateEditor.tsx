@@ -6,16 +6,26 @@ import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Save, Eye, ArrowLeft, Sparkles } from 'lucide-react';
-import { TemplateLayout, Block, Theme } from '@/features/templates/engine/schema';
+import { TemplateLayout, Block, Theme, LayoutSettings } from '@/features/templates/engine/schema';
 import { BLOCK_METADATA } from '@/features/templates/engine/registry';
 import { BlocksPalette } from '@/components/templates/BlocksPalette';
 import { CanvasEditor } from '@/components/templates/CanvasEditor';
 import { PropertiesPanel } from '@/components/templates/PropertiesPanel';
 import { ThemeCustomizer } from '@/components/templates/ThemeCustomizer';
+import { LayoutCustomizer } from '@/components/templates/LayoutCustomizer';
 import { PreviewDialog } from '@/components/templates/PreviewDialog';
 import defaultTemplate from '@/features/templates/sample/starvai-clean-a4.json';
 import { useDebounce } from '@/hooks/useDebounce';
+import { exportVariablesList } from '@/lib/variables-export';
+import { Download, FileDown } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export default function TemplateEditor() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -145,6 +155,14 @@ export default function TemplateEditor() {
     setHasChanges(true);
   }, []);
 
+  const handleUpdateLayout = useCallback((layoutSettings: LayoutSettings) => {
+    setLayout((prev) => ({
+      ...prev,
+      layout: layoutSettings,
+    }));
+    setHasChanges(true);
+  }, []);
+
   const handleSave = () => {
     saveMutation.mutate();
   };
@@ -196,6 +214,29 @@ export default function TemplateEditor() {
           </div>
 
           <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Variáveis
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => exportVariablesList('txt')}>
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Download TXT
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportVariablesList('csv')}>
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Download CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportVariablesList('json')}>
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Download JSON
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button
               variant="outline"
               size="sm"
@@ -266,10 +307,24 @@ export default function TemplateEditor() {
               onUpdateProps={handleUpdateBlockProps}
             />
           ) : (
-            <ThemeCustomizer
-              theme={layout.theme || defaultTemplate.theme}
-              onUpdateTheme={handleUpdateTheme}
-            />
+            <Tabs defaultValue="theme" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="theme">Tema</TabsTrigger>
+                <TabsTrigger value="layout">Layout</TabsTrigger>
+              </TabsList>
+              <TabsContent value="theme">
+                <ThemeCustomizer
+                  theme={layout.theme || defaultTemplate.theme}
+                  onUpdateTheme={handleUpdateTheme}
+                />
+              </TabsContent>
+              <TabsContent value="layout">
+                <LayoutCustomizer
+                  layout={layout.layout || {}}
+                  onUpdateLayout={handleUpdateLayout}
+                />
+              </TabsContent>
+            </Tabs>
           )}
         </div>
       </div>
