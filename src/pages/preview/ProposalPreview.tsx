@@ -8,23 +8,42 @@ import { Loader2, Download } from 'lucide-react';
 import { composeProposalView } from '@/features/templates/engine/adapters/composeProposalView';
 import { TemplateRenderer } from '@/features/templates/engine/render';
 import { TemplateLayout } from '@/features/templates/engine/schema';
-import defaultTemplate from '@/features/templates/sample/starvai-clean-a4.json';
+import { getDefaultTemplate, getTemplateById } from '@/lib/templates';
+import { useProfile } from '@/hooks/useProfile';
 import '@/features/templates/engine/print.css';
 
 export default function ProposalPreview() {
   const { proposalId } = useParams<{ proposalId: string }>();
+  const { profile } = useProfile();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showDetails, setShowDetails] = useState(
     searchParams.get('showDetails') === 'true'
   );
   const isPrintMode = searchParams.get('print') === '1';
+  const templateId = searchParams.get('templateId') || undefined;
 
   // Buscar dados da proposta
-  const { data: proposalView, isLoading } = useQuery({
+  const { data: proposalView, isLoading: loadingProposal } = useQuery({
     queryKey: ['proposal-preview', proposalId],
     queryFn: () => composeProposalView(proposalId!),
     enabled: !!proposalId,
   });
+
+  // Buscar template (específico ou padrão)
+  const { data: template, isLoading: loadingTemplate } = useQuery({
+    queryKey: ['template-for-preview', profile?.organization_id, templateId],
+    queryFn: async () => {
+      if (templateId) {
+        const tmpl = await getTemplateById(templateId);
+        if (tmpl) return tmpl;
+      }
+      // Fallback para template padrão da organização
+      return getDefaultTemplate(profile?.organization_id!);
+    },
+    enabled: !!profile?.organization_id,
+  });
+
+  const isLoading = loadingProposal || loadingTemplate;
 
   // Atualizar URL quando alterar showDetails
   useEffect(() => {
@@ -47,7 +66,7 @@ export default function ProposalPreview() {
     );
   }
 
-  if (!proposalView) {
+  if (!proposalView || !template) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -60,11 +79,10 @@ export default function ProposalPreview() {
     );
   }
 
-  const layout: TemplateLayout = defaultTemplate as TemplateLayout;
   const context = {
     data: proposalView,
     flags: { showDetails },
-    theme: layout.theme,
+    theme: template.theme,
   };
 
   const handleExportPdf = async () => {
@@ -109,7 +127,7 @@ export default function ProposalPreview() {
 
       {/* Preview do Template */}
       <div className="container mx-auto max-w-4xl py-8">
-        <TemplateRenderer layout={layout} context={context} />
+        <TemplateRenderer layout={template} context={context} />
       </div>
     </div>
   );

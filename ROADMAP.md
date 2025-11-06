@@ -57,7 +57,7 @@
 ### Q1 2025
 
 #### 🎨 Templates Avançados
-**Status**: ✅ Fase 2 Completa | 🚧 Fases 3-4 Planejadas  
+**Status**: ✅ Fases 1-3 Completas | 🚧 Fase 4 Próxima  
 **Prioridade**: Alta  
 **Descrição**: Sistema modular de templates por blocos
 
@@ -78,13 +78,21 @@
 - [x] Helper library em `src/lib/pdf.ts`
 - [ ] Puppeteer via Browserless.io (aguardando configuração)
 
-**Fase 3 - Gestão de Templates**: 🚧 Próxima
-- [ ] CRUD de templates por tenant via UI
-- [ ] Seleção de template padrão
-- [ ] Versionamento com histórico
-- [ ] Compartilhamento entre organizações
+**Fase 3 - Gestão de Templates**: ✅ Implementado
+- [x] CRUD completo de templates via UI `/templates`
+- [x] Criar template baseado em modelo padrão
+- [x] Editar nome, descrição e status
+- [x] Definir template padrão da organização
+- [x] Duplicar templates existentes
+- [x] Excluir templates (com restrição para padrão)
+- [x] Filtro automático por `template_type = 'blocks'`
+- [x] Helper library `src/lib/templates.ts`
+- [x] Preview usa template padrão ou específico via `?templateId=xxx`
+- [x] Documentação de usuário em `docs/TEMPLATE_MANAGEMENT.md`
+- [x] Listagem com badges de blocos e status
+- [x] RoleGuard: apenas gerentes e admins
 
-**Fase 4 - Editor Visual**: 🚧 Planejada
+**Fase 4 - Editor Visual**: 🚧 Próxima
 - [ ] Drag & drop de blocos
 - [ ] Auto-complete de variáveis
 - [ ] Chips de inserção de tokens

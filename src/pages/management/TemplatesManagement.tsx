@@ -6,22 +6,27 @@ import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Loader2, FileText, Star } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Pencil, Trash2, Loader2, Star, Copy, Eye, Layers } from 'lucide-react';
 import { RoleGuard } from '@/components/auth/RoleGuard';
+import { TemplateLayout } from '@/features/templates/engine/schema';
+import { BLOCK_METADATA } from '@/features/templates/engine/registry';
+import defaultTemplate from '@/features/templates/sample/starvai-clean-a4.json';
+import { useNavigate } from 'react-router-dom';
 
 interface ProposalTemplate {
   id: string;
   name: string;
   description: string | null;
-  content: any;
+  content: TemplateLayout;
   is_default: boolean;
   is_active: boolean;
+  template_type: string;
   created_at: string;
 }
 
@@ -29,30 +34,24 @@ export default function TemplatesManagement() {
   const { profile } = useProfile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ProposalTemplate | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    content: {
-      header: '',
-      introduction: '',
-      terms: '',
-      footer: '',
-      show_discount: true,
-      show_payment_methods: true,
-    },
-    is_default: false,
     is_active: true,
   });
 
+  // Buscar templates do tipo 'blocks'
   const { data: templates = [], isLoading } = useQuery({
-    queryKey: ['proposal-templates', profile?.organization_id],
+    queryKey: ['proposal-templates-blocks', profile?.organization_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('proposal_templates')
         .select('*')
         .eq('organization_id', profile?.organization_id!)
+        .eq('template_type', 'blocks')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -63,16 +62,24 @@ export default function TemplatesManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      // Usar template padrão como base
+      const layout: TemplateLayout = defaultTemplate as TemplateLayout;
+      
       const { error } = await supabase
         .from('proposal_templates')
         .insert({
-          ...data,
+          name: data.name,
+          description: data.description,
+          content: layout,
+          template_type: 'blocks',
+          is_active: data.is_active,
+          is_default: false,
           organization_id: profile?.organization_id,
         });
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['proposal-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['proposal-templates-blocks'] });
       toast({ title: 'Template criado com sucesso' });
       handleCloseDialog();
     },
@@ -86,7 +93,7 @@ export default function TemplatesManagement() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<ProposalTemplate> }) => {
       const { error } = await supabase
         .from('proposal_templates')
         .update(data)
@@ -94,13 +101,13 @@ export default function TemplatesManagement() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['proposal-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['proposal-templates-blocks'] });
       toast({ title: 'Template atualizado' });
       handleCloseDialog();
     },
     onError: (error: any) => {
       toast({
-        title: 'Erro ao atualizar',
+        title: 'Erro ao atualizar template',
         description: error.message,
         variant: 'destructive',
       });
@@ -116,12 +123,12 @@ export default function TemplatesManagement() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['proposal-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['proposal-templates-blocks'] });
       toast({ title: 'Template excluído' });
     },
     onError: (error: any) => {
       toast({
-        title: 'Erro ao excluir',
+        title: 'Erro ao excluir template',
         description: error.message,
         variant: 'destructive',
       });
@@ -130,13 +137,13 @@ export default function TemplatesManagement() {
 
   const setAsDefaultMutation = useMutation({
     mutationFn: async (id: string) => {
-      // First, unset all defaults
+      // Primeiro, remover is_default de todos
       await supabase
         .from('proposal_templates')
         .update({ is_default: false })
         .eq('organization_id', profile?.organization_id!);
 
-      // Then set the selected one as default
+      // Depois, setar o escolhido como padrão
       const { error } = await supabase
         .from('proposal_templates')
         .update({ is_default: true })
@@ -145,12 +152,40 @@ export default function TemplatesManagement() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['proposal-templates'] });
-      toast({ title: 'Template definido como padrão' });
+      queryClient.invalidateQueries({ queryKey: ['proposal-templates-blocks'] });
+      toast({ title: 'Template padrão definido' });
     },
     onError: (error: any) => {
       toast({
-        title: 'Erro ao definir como padrão',
+        title: 'Erro ao definir template padrão',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (template: ProposalTemplate) => {
+      const { error } = await supabase
+        .from('proposal_templates')
+        .insert({
+          name: `${template.name} (Cópia)`,
+          description: template.description,
+          content: template.content,
+          template_type: 'blocks',
+          is_active: true,
+          is_default: false,
+          organization_id: profile?.organization_id,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proposal-templates-blocks'] });
+      toast({ title: 'Template duplicado com sucesso' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao duplicar template',
         description: error.message,
         variant: 'destructive',
       });
@@ -159,32 +194,19 @@ export default function TemplatesManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) return;
-
+    
     if (editingTemplate) {
-      updateMutation.mutate({ id: editingTemplate.id, data: formData });
+      updateMutation.mutate({
+        id: editingTemplate.id,
+        data: {
+          name: formData.name,
+          description: formData.description,
+          is_active: formData.is_active,
+        },
+      });
     } else {
       createMutation.mutate(formData);
     }
-  };
-
-  const handleEdit = (template: ProposalTemplate) => {
-    setEditingTemplate(template);
-    setFormData({
-      name: template.name,
-      description: template.description || '',
-      content: template.content || {
-        header: '',
-        introduction: '',
-        terms: '',
-        footer: '',
-        show_discount: true,
-        show_payment_methods: true,
-      },
-      is_default: template.is_default,
-      is_active: template.is_active,
-    });
-    setDialogOpen(true);
   };
 
   const handleNewTemplate = () => {
@@ -192,16 +214,17 @@ export default function TemplatesManagement() {
     setFormData({
       name: '',
       description: '',
-      content: {
-        header: '',
-        introduction: '',
-        terms: '',
-        footer: '',
-        show_discount: true,
-        show_payment_methods: true,
-      },
-      is_default: false,
       is_active: true,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleEdit = (template: ProposalTemplate) => {
+    setEditingTemplate(template);
+    setFormData({
+      name: template.name,
+      description: template.description || '',
+      is_active: template.is_active,
     });
     setDialogOpen(true);
   };
@@ -211,10 +234,14 @@ export default function TemplatesManagement() {
     setEditingTemplate(null);
   };
 
+  const getBlockCount = (template: ProposalTemplate) => {
+    return template.content?.blocks?.length || 0;
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -224,256 +251,247 @@ export default function TemplatesManagement() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Templates de Propostas</h1>
+            <h1 className="text-3xl font-bold">Templates de Proposta</h1>
             <p className="text-muted-foreground mt-2">
-              Crie e gerencie templates para suas propostas comerciais
+              Sistema modular de templates por blocos com variáveis dinâmicas
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={handleNewTemplate}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Template
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  {editingTemplate ? 'Editar Template' : 'Novo Template'}
-                </DialogTitle>
-                <DialogDescription>
-                  Configure as seções e conteúdo padrão do template
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome do Template</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Proposta Padrão, Proposta Premium"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Quando usar este template?"
-                    rows={2}
-                  />
-                </div>
-
-                <div className="space-y-4 border-t pt-4">
-                  <h3 className="font-semibold">Conteúdo do Template</h3>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="header">Cabeçalho</Label>
-                    <Textarea
-                      id="header"
-                      value={formData.content.header}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        content: { ...formData.content, header: e.target.value }
-                      })}
-                      placeholder="Texto do cabeçalho da proposta"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="introduction">Introdução</Label>
-                    <Textarea
-                      id="introduction"
-                      value={formData.content.introduction}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        content: { ...formData.content, introduction: e.target.value }
-                      })}
-                      placeholder="Texto de introdução da proposta"
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="terms">Termos e Condições</Label>
-                    <Textarea
-                      id="terms"
-                      value={formData.content.terms}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        content: { ...formData.content, terms: e.target.value }
-                      })}
-                      placeholder="Termos e condições da proposta"
-                      rows={4}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="footer">Rodapé</Label>
-                    <Textarea
-                      id="footer"
-                      value={formData.content.footer}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        content: { ...formData.content, footer: e.target.value }
-                      })}
-                      placeholder="Informações de rodapé (contato, etc.)"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="space-y-3 border-t pt-3">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="show_discount">Mostrar Descontos</Label>
-                      <Switch
-                        id="show_discount"
-                        checked={formData.content.show_discount}
-                        onCheckedChange={(checked) => setFormData({ 
-                          ...formData, 
-                          content: { ...formData.content, show_discount: checked }
-                        })}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="show_payment_methods">Mostrar Formas de Pagamento</Label>
-                      <Switch
-                        id="show_payment_methods"
-                        checked={formData.content.show_payment_methods}
-                        onCheckedChange={(checked) => setFormData({ 
-                          ...formData, 
-                          content: { ...formData.content, show_payment_methods: checked }
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        id="is_active"
-                        checked={formData.is_active}
-                        onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                      />
-                      <Label htmlFor="is_active">Ativo</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        id="is_default"
-                        checked={formData.is_default}
-                        onCheckedChange={(checked) => setFormData({ ...formData, is_default: checked })}
-                      />
-                      <Label htmlFor="is_default">Template Padrão</Label>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit">
-                      {editingTemplate ? 'Atualizar' : 'Criar'}
-                    </Button>
-                  </div>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={handleNewTemplate} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Template
+          </Button>
         </div>
 
-        <Card>
+        {/* Info Card */}
+        <Card className="bg-primary/5 border-primary/20">
           <CardHeader>
-            <CardTitle>Templates Cadastrados</CardTitle>
-            <CardDescription>
-              {templates.length} template(s) criado(s)
-            </CardDescription>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Layers className="w-5 h-5 text-primary" />
+              Sistema de Templates por Blocos
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              <strong>7 blocos disponíveis:</strong> Cover, ItemsTable, Upgrades, Totals, Payment, Notes, Acceptance
+            </p>
+            <p>
+              <strong>50+ variáveis:</strong> Dados automapeados de produtos, marcas, clientes, organização, etc.
+            </p>
+            <p>
+              <strong>Editor Visual (Fase 4):</strong> Em breve - drag & drop de blocos e inserção de variáveis
+            </p>
+          </CardContent>
+        </Card>
+
+        {templates.length === 0 ? (
+          <Card>
+            <CardContent className="pt-12 pb-12 text-center">
+              <Layers className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="font-semibold mb-2">Nenhum template criado</h3>
+              <p className="text-muted-foreground mb-4">
+                Crie seu primeiro template baseado no modelo padrão "Starvai Clean A4"
+              </p>
+              <Button onClick={handleNewTemplate} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Criar Primeiro Template
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Descrição</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Blocos</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {templates.map((template) => (
                   <TableRow key={template.id}>
-                    <TableCell className="font-medium">
+                    <TableCell>
                       <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        {template.name}
                         {template.is_default && (
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                          <Star className="w-4 h-4 fill-primary text-primary" />
                         )}
+                        <span className="font-medium">{template.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {template.description || '-'}
+                      {template.description || '—'}
                     </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded text-xs ${template.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                        {template.is_active ? 'Ativo' : 'Inativo'}
-                      </span>
+                    <TableCell className="text-center">
+                      <Badge variant="outline" className="gap-1">
+                        <Layers className="w-3 h-3" />
+                        {getBlockCount(template)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {template.is_active ? (
+                        <Badge variant="default">Ativo</Badge>
+                      ) : (
+                        <Badge variant="secondary">Inativo</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2">
                         {!template.is_default && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setAsDefaultMutation.mutate(template.id)}
+                            title="Definir como padrão"
                           >
-                            <Star className="h-4 w-4 mr-1" />
-                            Definir como Padrão
+                            <Star className="w-4 h-4" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(template)}>
-                          <Pencil className="h-4 w-4" />
+                        
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => duplicateMutation.mutate(template)}
+                          title="Duplicar"
+                        >
+                          <Copy className="w-4 h-4" />
                         </Button>
-                        {!template.is_default && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir template</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir "{template.name}"?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteMutation.mutate(template.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(template)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={template.is_default}
+                              title={template.is_default ? 'Não é possível excluir o template padrão' : 'Excluir'}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir Template</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir o template "{template.name}"?
+                                Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteMutation.mutate(template.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+          </Card>
+        )}
+
+        {/* Dialog para Criar/Editar */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>
+                {editingTemplate ? 'Editar Template' : 'Novo Template'}
+              </DialogTitle>
+              <DialogDescription>
+                {editingTemplate 
+                  ? 'Altere as informações básicas do template'
+                  : 'Novo template será criado baseado no modelo "Starvai Clean A4"'
+                }
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="name">Nome do Template</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Proposta Comercial 2025"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description">Descrição (Opcional)</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Descreva o propósito deste template..."
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                <Label htmlFor="is_active" className="flex-1 cursor-pointer">
+                  Template Ativo
+                  <p className="text-xs text-muted-foreground font-normal">
+                    Templates inativos não aparecem para seleção
+                  </p>
+                </Label>
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={formData.is_active}
+                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  className="w-4 h-4"
+                />
+              </div>
+
+              {!editingTemplate && (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-medium">Blocos Incluídos:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {BLOCK_METADATA.map((block) => (
+                      <Badge key={block.type} variant="secondary" className="text-xs">
+                        {block.label}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Edição visual de blocos estará disponível na Fase 4
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                >
+                  {(createMutation.isPending || updateMutation.isPending) && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {editingTemplate ? 'Salvar' : 'Criar Template'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </RoleGuard>
   );
