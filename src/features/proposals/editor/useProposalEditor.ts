@@ -25,18 +25,7 @@ export function useProposalEditor(proposalId?: string) {
       title: '',
       issueDate: new Date().toISOString().split('T')[0],
       validityDays: 3,
-      sections: DEFAULT_SECTIONS.map((s, i) => ({
-        id: crypto.randomUUID(),
-        name: s.name!,
-        order: i,
-        visible: true,
-        items: [],
-        subtotal: 0,
-        excludeFromPayment: s.excludeFromPayment || false,
-        specialNote: s.name === 'Aspiração Central' 
-          ? 'Esse item não está incluso nas formas de pagamento; pagamento direto com parceiro.'
-          : undefined,
-      })),
+      sections: [],
       paymentConditions: [],
       notes: {
         generalNotes: '',

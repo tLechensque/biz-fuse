@@ -48,6 +48,9 @@ export function ProductSearchDialog({ open, onClose, onSelect }: Props) {
   });
 
   const handleSelect = (product: any) => {
+    // Use first image from image_urls array if available, fallback to image_url
+    const imageUrl = product.image_urls?.[0] || product.image_url;
+    
     onSelect({
       productId: product.id,
       productName: product.name,
@@ -60,7 +63,7 @@ export function ProductSearchDialog({ open, onClose, onSelect }: Props) {
       subtotal: Number(product.sell_price || 0),
       simpleDescription: product.simple_description,
       detailedDescription: product.full_description,
-      imageUrl: product.image_url,
+      imageUrl,
     });
     onClose();
   };
@@ -111,11 +114,11 @@ export function ProductSearchDialog({ open, onClose, onSelect }: Props) {
                     className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors"
                     onClick={() => handleSelect(product)}
                   >
-                    {product.image_url && (
+                    {(product.image_urls?.[0] || product.image_url) && (
                       <img
-                        src={product.image_url}
+                        src={product.image_urls?.[0] || product.image_url}
                         alt={product.name}
-                        className="w-16 h-16 object-cover rounded"
+                        className="w-16 h-16 object-cover rounded border"
                       />
                     )}
                     <div className="flex-1 min-w-0">

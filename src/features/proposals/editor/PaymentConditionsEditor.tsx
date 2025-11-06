@@ -146,7 +146,18 @@ export function PaymentConditionsEditor({ form }: Props) {
           fields.map((field, index) => {
             const condition = form.watch(`paymentConditions.${index}`);
             const method = paymentMethods.find((m) => m.id === condition?.methodId);
-            const maxInstallments = method?.max_installments || 1;
+            
+            // Get max installments from card_brands_config or fallback to max_installments
+            let maxInstallments = 12; // default
+            if (method?.card_brands_config) {
+              const config = method.card_brands_config as any;
+              const visaConfig = config.visa || config.mastercard || config.elo;
+              if (visaConfig?.credit_max_installments) {
+                maxInstallments = visaConfig.credit_max_installments;
+              }
+            } else if (method?.max_installments) {
+              maxInstallments = method.max_installments;
+            }
 
             return (
               <div key={field.id} className="p-4 border rounded-lg space-y-4">

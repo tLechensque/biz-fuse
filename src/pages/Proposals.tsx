@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +27,7 @@ import {
   Eye,
   Edit,
   MoreHorizontal,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,78 +36,37 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const proposals = [
-  {
-    id: "1",
-    title: "Automação Residencial Completa - Casa Alphaville",
-    client: "João Silva",
-    value: 15450.00,
-    status: "PENDING_APPROVAL",
-    createdAt: "2024-01-15",
-    version: 2,
-    margin: 42.5,
-  },
-  {
-    id: "2",
-    title: "Sistema de Segurança Empresarial",
-    client: "Empresa Tech Solutions",
-    value: 28750.00,
-    status: "APPROVED_TO_SEND",
-    createdAt: "2024-01-12",
-    version: 1,
-    margin: 38.2,
-  },
-  {
-    id: "3",
-    title: "Iluminação Inteligente - Apartamento 140m²",
-    client: "Maria Santos",
-    value: 8200.00,
-    status: "DRAFT",
-    createdAt: "2024-01-10",
-    version: 1,
-    margin: 35.8,
-  },
-  {
-    id: "4",
-    title: "Home Theater e Automação",
-    client: "Carlos Oliveira",
-    value: 22340.00,
-    status: "CLIENT_APPROVED",
-    createdAt: "2024-01-08",
-    version: 3,
-    margin: 45.1,
-  },
-  {
-    id: "5",
-    title: "Sistema de Climatização Inteligente",
-    client: "Residencial Sunset",
-    value: 12890.00,
-    status: "SENT",
-    createdAt: "2024-01-05",
-    version: 1,
-    margin: 33.4,
-  },
-];
-
 const statusConfig = {
   DRAFT: { label: "Rascunho", color: "bg-muted text-muted-foreground", icon: AlertCircle },
-  PENDING_APPROVAL: { label: "Aguardando Aprovação", color: "bg-warning/10 text-warning", icon: Clock },
-  REJECTED: { label: "Rejeitada", color: "bg-destructive/10 text-destructive", icon: XCircle },
-  APPROVED_TO_SEND: { label: "Aprovada para Envio", color: "bg-success/10 text-success", icon: CheckCircle },
   SENT: { label: "Enviada", color: "bg-primary/10 text-primary", icon: Send },
-  CLIENT_APPROVED: { label: "Aprovada pelo Cliente", color: "bg-success text-success-foreground", icon: CheckCircle },
-  CLIENT_REJECTED: { label: "Rejeitada pelo Cliente", color: "bg-destructive/10 text-destructive", icon: XCircle },
-  CLOSED: { label: "Fechada", color: "bg-muted text-muted-foreground", icon: CheckCircle },
+  APPROVED: { label: "Aprovada", color: "bg-success text-success-foreground", icon: CheckCircle },
+  REJECTED: { label: "Rejeitada", color: "bg-destructive/10 text-destructive", icon: XCircle },
 };
 
 export default function Proposals() {
   const navigate = useNavigate();
+  const { profile } = useProfile();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  const { data: proposals = [], isLoading } = useQuery({
+    queryKey: ['proposals', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('proposals')
+        .select('*')
+        .eq('organization_id', profile!.organization_id)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.organization_id,
+  });
+
   const filteredProposals = proposals.filter(proposal => {
     const matchesSearch = proposal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         proposal.client.toLowerCase().includes(searchTerm.toLowerCase());
+                         proposal.client_name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || proposal.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -117,12 +80,6 @@ export default function Proposals() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR');
-  };
-
-  const getMarginColor = (margin: number) => {
-    if (margin >= 40) return "text-success";
-    if (margin >= 35) return "text-warning";
-    return "text-destructive";
   };
 
   return (
@@ -162,10 +119,9 @@ export default function Proposals() {
               <SelectContent>
                 <SelectItem value="all">Todos os Status</SelectItem>
                 <SelectItem value="DRAFT">Rascunho</SelectItem>
-                <SelectItem value="PENDING_APPROVAL">Aguardando Aprovação</SelectItem>
-                <SelectItem value="APPROVED_TO_SEND">Aprovada para Envio</SelectItem>
                 <SelectItem value="SENT">Enviada</SelectItem>
-                <SelectItem value="CLIENT_APPROVED">Aprovada pelo Cliente</SelectItem>
+                <SelectItem value="APPROVED">Aprovada</SelectItem>
+                <SelectItem value="REJECTED">Rejeitada</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -174,8 +130,14 @@ export default function Proposals() {
 
       {/* Proposals List */}
       <div className="space-y-4">
-        {filteredProposals.map((proposal) => {
-          const StatusIcon = statusConfig[proposal.status as keyof typeof statusConfig].icon;
+        {isLoading ? (
+          <Card>
+            <CardContent className="pt-12 pb-12 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ) : filteredProposals.map((proposal) => {
+          const StatusIcon = statusConfig[proposal.status as keyof typeof statusConfig]?.icon || AlertCircle;
           
           return (
             <Card key={proposal.id} className="hover:shadow-medium transition-all duration-200">
@@ -190,24 +152,18 @@ export default function Proposals() {
                       </Badge>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Cliente</p>
-                        <p className="font-medium">{proposal.client}</p>
+                        <p className="font-medium">{proposal.client_name}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Valor</p>
                         <p className="font-bold text-lg">{formatCurrency(proposal.value)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Margem</p>
-                        <p className={`font-semibold ${getMarginColor(proposal.margin)}`}>
-                          {proposal.margin}%
-                        </p>
-                      </div>
-                      <div>
                         <p className="text-muted-foreground">Criada em</p>
-                        <p className="font-medium">{formatDate(proposal.createdAt)}</p>
+                        <p className="font-medium">{formatDate(proposal.created_at)}</p>
                       </div>
                     </div>
                   </div>
@@ -215,10 +171,10 @@ export default function Proposals() {
                   <div className="flex items-center gap-3">
                     <Badge
                       variant="secondary"
-                      className={statusConfig[proposal.status as keyof typeof statusConfig].color}
+                      className={statusConfig[proposal.status as keyof typeof statusConfig]?.color || "bg-muted"}
                     >
                       <StatusIcon className="w-3 h-3 mr-1" />
-                      {statusConfig[proposal.status as keyof typeof statusConfig].label}
+                      {statusConfig[proposal.status as keyof typeof statusConfig]?.label || proposal.status}
                     </Badge>
                     
                     <DropdownMenu>

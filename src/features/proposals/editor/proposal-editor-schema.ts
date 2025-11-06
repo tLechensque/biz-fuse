@@ -63,7 +63,7 @@ export const ProposalEditorFormSchema = z.object({
   status: z.enum(['DRAFT', 'SENT', 'APPROVED', 'REJECTED']).default('DRAFT'),
   
   // Sections
-  sections: z.array(ProposalSectionSchema).min(1, 'Ao menos uma seção obrigatória'),
+  sections: z.array(ProposalSectionSchema).default([]),
   
   // Payments
   paymentConditions: z.array(PaymentConditionSchema).default([]),
