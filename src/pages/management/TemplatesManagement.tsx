@@ -361,7 +361,8 @@ export default function TemplatesManagement() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleEdit(template)}
+                          onClick={() => navigate(`/templates/editor/${template.id}`)}
+                          title="Editar no Editor Visual"
                         >
                           <Pencil className="w-4 h-4" />
                         </Button>

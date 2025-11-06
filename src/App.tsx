@@ -21,6 +21,7 @@ import OrganizationSettings from "./pages/management/OrganizationSettings";
 import DiscountsManagement from "./pages/management/DiscountsManagement";
 import PortfolioManagement from "./pages/management/PortfolioManagement";
 import TemplatesManagement from "./pages/management/TemplatesManagement";
+import TemplateEditor from "./pages/templates/TemplateEditor";
 import ProposalPreview from "./pages/preview/ProposalPreview";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProfileSetup } from "./components/ProfileSetup";
@@ -69,6 +70,7 @@ const App = () => (
                   </div>
                 } />
                 <Route path="/templates" element={<TemplatesManagement />} />
+                <Route path="/templates/editor/:templateId" element={<TemplateEditor />} />
                 <Route path="/portfolio" element={<PortfolioManagement />} />
                 <Route path="/payment-methods" element={<PaymentsManagement />} />
                 <Route path="/organization" element={<OrganizationSettings />} />

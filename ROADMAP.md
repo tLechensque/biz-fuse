@@ -57,9 +57,9 @@
 ### Q1 2025
 
 #### 🎨 Templates Avançados
-**Status**: ✅ Fases 1-3 Completas | 🚧 Fase 4 Próxima  
+**Status**: ✅ TODAS AS FASES COMPLETAS  
 **Prioridade**: Alta  
-**Descrição**: Sistema modular de templates por blocos
+**Descrição**: Sistema modular de templates por blocos com editor visual
 
 **Fase 1 - Engine e Blocos**: ✅ Implementado
 - [x] Engine modular com 7 blocos
@@ -92,13 +92,21 @@
 - [x] Listagem com badges de blocos e status
 - [x] RoleGuard: apenas gerentes e admins
 
-**Fase 4 - Editor Visual**: 🚧 Próxima
-- [ ] Drag & drop de blocos
-- [ ] Auto-complete de variáveis
-- [ ] Chips de inserção de tokens
-- [ ] Preview vivo lado a lado
-- [ ] Customização de tema (cores, fontes)
-- [ ] Autosave com debounce
+**Fase 4 - Editor Visual**: ✅ Implementado
+- [x] Drag & drop de blocos com @dnd-kit
+- [x] Canvas central com reordenação visual
+- [x] Paleta de blocos à esquerda (7 blocos disponíveis)
+- [x] Painel de propriedades à direita (Cover e ItemsTable)
+- [x] Auto-complete de variáveis ao digitar {{
+- [x] Sugestões agrupadas por categoria (50+ variáveis)
+- [x] Customização de tema (3 cores: primária, destaque, suave)
+- [x] Preview vivo com dados mock em dialog
+- [x] Autosave com debounce de 2 segundos
+- [x] Indicador de status de salvamento no header
+- [x] Rota `/templates/editor/:templateId`
+- [x] Botão de edição (✏️) na lista de templates
+- [x] Documentação completa em `docs/TEMPLATE_EDITOR.md`
+- [x] Componentes: VariableAutocomplete, ThemeCustomizer, PreviewDialog, CanvasEditor, BlocksPalette
 
 ---
 
