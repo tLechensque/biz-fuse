@@ -14,7 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Loader2, Building2, Phone, Mail, FileText, Upload, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Building2, Phone, Mail, FileText, Upload, Package, ExternalLink } from 'lucide-react';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 
 interface Supplier {
@@ -33,6 +33,7 @@ interface PriceTable {
   id: string;
   name: string;
   supplier_ids: string[];
+  pdf_url: string;
 }
 
 interface Brand {
@@ -92,7 +93,7 @@ export default function SuppliersManagement() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('price_tables')
-        .select('id, name, supplier_ids')
+        .select('id, name, supplier_ids, pdf_url')
         .eq('organization_id', profile?.organization_id!)
         .order('name');
       
@@ -101,6 +102,26 @@ export default function SuppliersManagement() {
     },
     enabled: !!profile?.organization_id,
   });
+
+  const handleOpenPdf = async (pdfPath: string, tableName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('price-lists')
+        .createSignedUrl(pdfPath, 3600); // URL válida por 1 hora
+
+      if (error) throw error;
+
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao abrir PDF',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -445,67 +466,97 @@ export default function SuppliersManagement() {
           </CardHeader>
           <CardContent>
             <Table>
-              <TableHeader>
-                 <TableRow>
-                   <TableHead>Nome</TableHead>
-                   <TableHead>CNPJ</TableHead>
-                   <TableHead>Contato</TableHead>
-                   <TableHead>Marcas</TableHead>
-                   <TableHead>Status</TableHead>
-                   <TableHead className="text-right">Ações</TableHead>
-                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                 {suppliers.map((supplier) => (
-                   <TableRow key={supplier.id}>
-                     <TableCell>
-                       <div className="flex items-center gap-2">
-                         <Building2 className="h-4 w-4 text-muted-foreground" />
-                         <div className="font-medium">{supplier.name}</div>
-                       </div>
-                     </TableCell>
-                     <TableCell>{supplier.cnpj || '-'}</TableCell>
-                     <TableCell>
-                       <div className="space-y-1 text-sm">
-                         {supplier.contact_name && (
-                           <div className="font-medium">{supplier.contact_name}</div>
-                         )}
-                         {supplier.email && (
-                           <div className="text-muted-foreground">{supplier.email}</div>
-                         )}
-                         {supplier.whatsapp && (
-                           <div className="text-muted-foreground">{supplier.whatsapp}</div>
-                         )}
-                       </div>
-                     </TableCell>
-                     <TableCell>
-                       <div className="flex flex-wrap gap-1 max-w-[200px]">
-                         {supplier.brand_ids && supplier.brand_ids.length > 0 ? (
-                           supplier.brand_ids.slice(0, 3).map(brandId => {
-                             const brand = brands.find(b => b.id === brandId);
-                             return brand ? (
-                               <Badge key={brandId} variant="outline" className="text-xs">
-                                 {brand.name}
-                               </Badge>
-                             ) : null;
-                           })
-                         ) : (
-                           <span className="text-sm text-muted-foreground">-</span>
-                         )}
-                         {supplier.brand_ids && supplier.brand_ids.length > 3 && (
-                           <Badge variant="outline" className="text-xs">
-                             +{supplier.brand_ids.length - 3}
-                           </Badge>
-                         )}
-                       </div>
-                     </TableCell>
-                    <TableCell>
-                      <Badge variant={supplier.is_active ? 'default' : 'secondary'}>
-                        {supplier.is_active ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+               <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>CNPJ</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Marcas</TableHead>
+                    <TableHead>Tabelas de Preço</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+               </TableHeader>
+               <TableBody>
+                  {suppliers.map((supplier) => {
+                    const associatedTables = priceTables.filter(pt => 
+                      pt.supplier_ids?.includes(supplier.id)
+                    );
+                    
+                    return (
+                      <TableRow key={supplier.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-muted-foreground" />
+                            <div className="font-medium">{supplier.name}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{supplier.cnpj || '-'}</TableCell>
+                        <TableCell>
+                          <div className="space-y-1 text-sm">
+                            {supplier.contact_name && (
+                              <div className="font-medium">{supplier.contact_name}</div>
+                            )}
+                            {supplier.email && (
+                              <div className="text-muted-foreground">{supplier.email}</div>
+                            )}
+                            {supplier.whatsapp && (
+                              <div className="text-muted-foreground">{supplier.whatsapp}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {supplier.brand_ids && supplier.brand_ids.length > 0 ? (
+                              supplier.brand_ids.slice(0, 3).map(brandId => {
+                                const brand = brands.find(b => b.id === brandId);
+                                return brand ? (
+                                  <Badge key={brandId} variant="outline" className="text-xs">
+                                    {brand.name}
+                                  </Badge>
+                                ) : null;
+                              })
+                            ) : (
+                              <span className="text-sm text-muted-foreground">-</span>
+                            )}
+                            {supplier.brand_ids && supplier.brand_ids.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{supplier.brand_ids.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {associatedTables.length > 0 ? (
+                            <div className="flex flex-col gap-1 max-w-[250px]">
+                              {associatedTables.slice(0, 2).map(table => (
+                                <button
+                                  key={table.id}
+                                  onClick={() => handleOpenPdf(table.pdf_url, table.name)}
+                                  className="flex items-center gap-1 text-xs text-primary hover:underline text-left"
+                                >
+                                  <FileText className="h-3 w-3" />
+                                  {table.name}
+                                  <ExternalLink className="h-3 w-3" />
+                                </button>
+                              ))}
+                              {associatedTables.length > 2 && (
+                                <Badge variant="outline" className="text-xs w-fit">
+                                  +{associatedTables.length - 2} mais
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                       <TableCell>
+                         <Badge variant={supplier.is_active ? 'default' : 'secondary'}>
+                           {supplier.is_active ? 'Ativo' : 'Inativo'}
+                         </Badge>
+                       </TableCell>
+                       <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -537,11 +588,12 @@ export default function SuppliersManagement() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
+                       </div>
+                     </TableCell>
+                   </TableRow>
+                 );
+               })}
+             </TableBody>
             </Table>
           </CardContent>
         </Card>

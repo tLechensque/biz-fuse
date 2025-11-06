@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Pencil, Trash2, Loader2, Package, FileText, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Package, FileText, ExternalLink } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 interface Brand {
   id: string;
@@ -19,6 +20,13 @@ interface Brand {
   supplier_id: string | null;
   discount_percentage: number;
   created_at: string;
+}
+
+interface PriceTable {
+  id: string;
+  name: string;
+  pdf_url: string;
+  brand_ids: string[];
 }
 
 export default function BrandsManagement() {
@@ -60,6 +68,41 @@ export default function BrandsManagement() {
     },
     enabled: !!profile?.organization_id,
   });
+
+  const { data: priceTables = [] } = useQuery({
+    queryKey: ['price_tables', profile?.organization_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('price_tables')
+        .select('id, name, pdf_url, brand_ids')
+        .eq('organization_id', profile?.organization_id!)
+        .order('name');
+      
+      if (error) throw error;
+      return data as PriceTable[];
+    },
+    enabled: !!profile?.organization_id,
+  });
+
+  const handleOpenPdf = async (pdfPath: string, tableName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('price-lists')
+        .createSignedUrl(pdfPath, 3600); // URL válida por 1 hora
+
+      if (error) throw error;
+
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao abrir PDF',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -325,32 +368,62 @@ export default function BrandsManagement() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Fornecedor</TableHead>
                 <TableHead>Desconto Padrão</TableHead>
+                <TableHead>Tabelas de Preço</TableHead>
                 <TableHead>Data de Criação</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {brands.map((brand) => (
-                <TableRow key={brand.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <Package className="h-4 w-4 text-muted-foreground" />
-                      {brand.name}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {brand.supplier_id ? (
-                      suppliers.find((s: any) => s.id === brand.supplier_id)?.name || '-'
-                    ) : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium text-primary">
-                      {brand.discount_percentage}%
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(brand.created_at).toLocaleDateString('pt-BR')}
-                  </TableCell>
+              {brands.map((brand) => {
+                const associatedTables = priceTables.filter(pt => 
+                  pt.brand_ids?.includes(brand.id)
+                );
+                
+                return (
+                  <TableRow key={brand.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        {brand.name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {brand.supplier_id ? (
+                        suppliers.find((s: any) => s.id === brand.supplier_id)?.name || '-'
+                      ) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium text-primary">
+                        {brand.discount_percentage}%
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {associatedTables.length > 0 ? (
+                        <div className="flex flex-col gap-1 max-w-[250px]">
+                          {associatedTables.slice(0, 2).map(table => (
+                            <button
+                              key={table.id}
+                              onClick={() => handleOpenPdf(table.pdf_url, table.name)}
+                              className="flex items-center gap-1 text-xs text-primary hover:underline text-left"
+                            >
+                              <FileText className="h-3 w-3" />
+                              {table.name}
+                              <ExternalLink className="h-3 w-3" />
+                            </button>
+                          ))}
+                          {associatedTables.length > 2 && (
+                            <Badge variant="outline" className="text-xs w-fit">
+                              +{associatedTables.length - 2} mais
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(brand.created_at).toLocaleDateString('pt-BR')}
+                    </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
@@ -385,9 +458,10 @@ export default function BrandsManagement() {
                         </AlertDialogContent>
                       </AlertDialog>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
