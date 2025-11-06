@@ -9,6 +9,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, Save, Eye, Undo, Redo } from 'lucide-react';
 import { composeProposalView } from '@/features/templates/engine/adapters/composeProposalView';
+import { ProposalView } from '@/features/templates/engine/schema';
 import { DroppableCanvas } from '@/features/templates-v2/editor/DroppableCanvas';
 import { LayersPanel } from '@/features/templates-v2/editor/LayersPanel';
 import { InspectorPanel } from '@/features/templates-v2/editor/InspectorPanel';
@@ -56,16 +57,20 @@ export default function TemplateEditorV2() {
   const { data: mockData } = useQuery({
     queryKey: ['mock-proposal'],
     queryFn: async () => {
+      // Tentar buscar uma proposta real primeiro
       const { data: proposals } = await supabase
         .from('proposals')
         .select('id')
         .limit(1)
-        .single();
+        .maybeSingle();
       
       if (proposals?.id) {
         return composeProposalView(proposals.id);
       }
-      throw new Error('No proposals found');
+      
+      // Se não houver proposals, usar sample data
+      const sampleData = await import('@/features/templates-v2/sample/sample-data.json');
+      return sampleData.default as unknown as ProposalView;
     },
   });
 
