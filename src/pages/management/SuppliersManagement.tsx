@@ -104,13 +104,29 @@ export default function SuppliersManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase
+      const { data: created, error } = await supabase
         .from('suppliers')
-        .insert({ ...data, organization_id: profile?.organization_id });
+        .insert({ ...data, organization_id: profile?.organization_id })
+        .select('id')
+        .single();
       if (error) throw error;
+      return created;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+    onSuccess: async (created) => {
+      // Vincular marcas selecionadas a este fornecedor
+      if (formData.brand_ids.length > 0) {
+        await supabase
+          .from('brands')
+          .update({ supplier_id: created.id })
+          .in('id', formData.brand_ids);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
+        queryClient.invalidateQueries({ queryKey: ['suppliers-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['brands'] }),
+      ]);
+
       toast({ title: 'Fornecedor criado com sucesso' });
       handleCloseDialog();
     },
@@ -130,9 +146,31 @@ export default function SuppliersManagement() {
         .update(data)
         .eq('id', id);
       if (error) throw error;
+      return id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+    onSuccess: async (id: string) => {
+      // Sincronizar relação marca ↔ fornecedor
+      const previous = editingSupplier?.brand_ids || [];
+      const added = formData.brand_ids.filter((b) => !previous.includes(b));
+      const removed = previous.filter((b) => !formData.brand_ids.includes(b));
+
+      if (added.length > 0) {
+        await supabase.from('brands').update({ supplier_id: id }).in('id', added);
+      }
+      if (removed.length > 0) {
+        await supabase
+          .from('brands')
+          .update({ supplier_id: null })
+          .in('id', removed)
+          .eq('supplier_id', id);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
+        queryClient.invalidateQueries({ queryKey: ['suppliers-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['brands'] }),
+      ]);
+
       toast({ title: 'Fornecedor atualizado' });
       handleCloseDialog();
     },
@@ -153,8 +191,11 @@ export default function SuppliersManagement() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
+        queryClient.invalidateQueries({ queryKey: ['suppliers-list'] }),
+      ]);
       toast({ title: 'Fornecedor excluído' });
     },
     onError: (error: any) => {

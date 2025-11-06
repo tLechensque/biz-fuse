@@ -192,24 +192,45 @@ export default function PaymentsManagement() {
   };
 
   const updateBrandFee = (brand: keyof typeof formData.card_brands_config, installment: number, fee: number) => {
-    const brandConfig = { ...formData.card_brands_config[brand] };
-    const fees = [...(brandConfig.credit_fees || [])];
-    const index = fees.findIndex(f => f.installment === installment);
-    
-    if (index >= 0) {
-      fees[index] = { installment, fee };
-    } else {
-      fees.push({ installment, fee });
-    }
-    
-    brandConfig.credit_fees = fees.sort((a, b) => a.installment - b.installment);
-    
-    setFormData({
-      ...formData,
-      card_brands_config: {
-        ...formData.card_brands_config,
-        [brand]: brandConfig
+    setFormData((prev) => {
+      const brandConfig = { ...prev.card_brands_config[brand] };
+      const fees = [...(brandConfig.credit_fees || [])];
+      const index = fees.findIndex((f) => f.installment === installment);
+
+      if (index >= 0) {
+        fees[index] = { installment, fee };
+      } else {
+        fees.push({ installment, fee });
       }
+
+      brandConfig.credit_fees = fees.sort((a, b) => a.installment - b.installment);
+
+      return {
+        ...prev,
+        card_brands_config: {
+          ...prev.card_brands_config,
+          [brand]: brandConfig,
+        },
+      };
+    });
+  };
+
+  const updateAllBrandFees = (installment: number, fee: number) => {
+    setFormData((prev) => {
+      const nextConfig: typeof prev.card_brands_config = { ...prev.card_brands_config } as any;
+      (Object.keys(nextConfig) as Array<keyof typeof nextConfig>).forEach((brand) => {
+        const brandConfig = { ...nextConfig[brand] } as any;
+        const fees = [...(brandConfig.credit_fees || [])];
+        const index = fees.findIndex((f) => f.installment === installment);
+        if (index >= 0) {
+          fees[index] = { installment, fee };
+        } else {
+          fees.push({ installment, fee });
+        }
+        brandConfig.credit_fees = fees.sort((a, b) => a.installment - b.installment);
+        (nextConfig as any)[brand] = brandConfig;
+      });
+      return { ...prev, card_brands_config: nextConfig };
     });
   };
 
@@ -470,9 +491,7 @@ export default function PaymentsManagement() {
                                   onChange={(e) => {
                                     const value = e.target.value;
                                     const fee = value === '' ? 0 : parseFloat(value);
-                                    CARD_BRANDS.forEach(brand => {
-                                      updateBrandFee(brand, installment, fee);
-                                    });
+                                    updateAllBrandFees(installment, fee);
                                   }}
                                 />
                               </div>
