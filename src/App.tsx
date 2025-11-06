@@ -21,6 +21,7 @@ import OrganizationSettings from "./pages/management/OrganizationSettings";
 import DiscountsManagement from "./pages/management/DiscountsManagement";
 import PortfolioManagement from "./pages/management/PortfolioManagement";
 import TemplatesManagement from "./pages/management/TemplatesManagement";
+import ProposalPreview from "./pages/preview/ProposalPreview";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProfileSetup } from "./components/ProfileSetup";
 import { ProtectedLayout } from "./components/layout/ProtectedLayout";
@@ -46,6 +47,9 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<Index />} />
+              
+              {/* Preview route (can be public for PDF generation) */}
+              <Route path="/preview/:proposalId" element={<ProposalPreview />} />
               
               {/* Protected routes with Layout */}
               <Route element={<ProtectedLayout />}>

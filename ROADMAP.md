@@ -40,27 +40,46 @@
 - [x] Templates de propostas (HTML)
 - [x] Configurações da organização
 
+#### 🎨 Sistema de Templates por Blocos (NEW!)
+- [x] Engine modular com 7 blocos (Cover, ItemsTable, Upgrades, Totals, Payment, Notes, Acceptance)
+- [x] Registry com 50+ variáveis automapeadas
+- [x] Adapter que reutiliza dados existentes
+- [x] Preview web com toggle de detalhes
+- [x] Geração de PDF A4 otimizado
+- [x] Template padrão "Starvai Clean A4"
+- [x] Resolução segura de variáveis
+- [x] Print CSS com paginação inteligente
+
 ---
 
 ## 🚧 Em Desenvolvimento (v1.1)
 
 ### Q1 2025
 
-#### 📄 Exportação de Propostas
+#### 🎨 Templates Avançados (Fase 2-4)
 **Status**: Planejado  
 **Prioridade**: Alta  
-**Descrição**: Gerar PDF profissional das propostas
+**Descrição**: Evoluir sistema de templates
 
-**Features**:
-- Exportação de proposta para PDF com template customizado
-- Assinatura digital de propostas
-- Envio automático por email para clientes
-- Marca d'água personalizada por organização
-- Opções de layout (retrato/paisagem)
+**Fase 2 - Geração Avançada de PDF**:
+- [ ] Edge function com Puppeteer
+- [ ] Rate limiting (10 PDFs/min)
+- [ ] Cache de renders
+- [ ] Sanitização HTML
 
-**Dependências**:
-- Biblioteca PDF (jsPDF ou Puppeteer)
-- Sistema de templates aprimorado
+**Fase 3 - Gestão de Templates**:
+- [ ] CRUD de templates por tenant
+- [ ] Seleção de template padrão
+- [ ] Versionamento com histórico
+- [ ] Compartilhamento entre organizações
+
+**Fase 4 - Editor Visual**:
+- [ ] Drag & drop de blocos
+- [ ] Auto-complete de variáveis
+- [ ] Chips de inserção de tokens
+- [ ] Preview vivo lado a lado
+- [ ] Customização de tema (cores, fontes)
+- [ ] Autosave com debounce
 
 ---
 

@@ -1,0 +1,128 @@
+/* Print CSS - A4 optimized for Puppeteer */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm;
+  }
+
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 10pt;
+    line-height: 1.4;
+    color: #1a1a1a;
+  }
+
+  /* Evitar quebras */
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .print-break-after {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  /* Blocos */
+  .template-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 16px;
+  }
+
+  .template-block-cover {
+    min-height: 200mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  /* Tabelas */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Imagens */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Ocultar elementos não imprimíveis */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Links */
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /* Botões e interativos */
+  button,
+  input,
+  select,
+  textarea {
+    display: none;
+  }
+}
+
+/* Utilidades de impressão (sempre aplicadas) */
+.print-full-width {
+  width: 100%;
+}
+
+.print-text-center {
+  text-align: center;
+}
+
+.print-text-right {
+  text-align: right;
+}
+
+.print-font-bold {
+  font-weight: 600;
+}
+
+.print-font-semibold {
+  font-weight: 500;
+}
+
+.print-mb-4 {
+  margin-bottom: 16px;
+}
+
+.print-mt-4 {
+  margin-top: 16px;
+}
+
+.print-p-4 {
+  padding: 16px;
+}

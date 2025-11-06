@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,6 +97,7 @@ const statusConfig = {
 };
 
 export default function Proposals() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -226,9 +228,9 @@ export default function Proposals() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate(`/preview/${proposal.id}`)}>
                           <Eye className="w-4 h-4 mr-2" />
-                          Visualizar
+                          Visualizar Preview
                         </DropdownMenuItem>
                         <DropdownMenuItem>
                           <Edit className="w-4 h-4 mr-2" />

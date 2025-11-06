@@ -1,0 +1,41 @@
+{
+  "name": "Starvai Clean A4 v1",
+  "theme": {
+    "primary": "#0E121B",
+    "accent": "#2B6CB0",
+    "soft": "#F4F6F9"
+  },
+  "blocks": [
+    {
+      "type": "Cover",
+      "props": {
+        "showLogo": true,
+        "title": "{{proposal.title}}",
+        "subtitle": "Pedido #{{proposal.code}} · Data {{proposal.issueDate}} · Validade {{proposal.validityDays}} dias úteis",
+        "showClient": true
+      }
+    },
+    {
+      "type": "ItemsTable",
+      "props": {
+        "showDetails": false,
+        "showImages": true
+      }
+    },
+    {
+      "type": "Upgrades"
+    },
+    {
+      "type": "Totals"
+    },
+    {
+      "type": "Payment"
+    },
+    {
+      "type": "Notes"
+    },
+    {
+      "type": "Acceptance"
+    }
+  ]
+}
