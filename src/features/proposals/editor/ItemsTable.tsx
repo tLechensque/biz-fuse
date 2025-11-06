@@ -47,37 +47,41 @@ export function ItemsTable({ form, sectionIndex }: Props) {
   };
 
   const handleAddProduct = (product: any) => {
-    const sellPrice = Number(product.sell_price || 0);
-    const costPrice = Number(product.cost_price || 0);
-    
+    // Aceita tanto o objeto 'raw' do banco quanto o objeto mapeado
+    const sellPrice = Number(
+      product.sell_price ?? product.unitPrice ?? 0
+    );
+    const costPrice = Number(product.cost_price ?? product.costPrice ?? 0);
+    const brandId = product.brand_id ?? product.brandId ?? product.brands?.id ?? '';
+    const brandName = product.brand ?? product.brandName ?? product.brands?.name ?? '';
+    const imageUrl = product.image_urls?.[0] ?? product.image_url ?? product.imageUrl ?? '';
+
     append({
       id: crypto.randomUUID(),
-      productId: product.id,
-      productName: product.name,
-      brandId: product.brand_id,
-      brandName: product.brand || '',
-      model: product.model || '',
-      sku: product.sku || '',
+      productId: product.id ?? product.productId,
+      productName: product.name ?? product.productName ?? 'Produto',
+      brandId,
+      brandName,
+      model: product.model ?? product.unit ?? '',
+      sku: product.sku ?? '',
       qty: 1,
       unitPrice: sellPrice,
-      costPrice: costPrice,
+      costPrice,
       discountEnabled: false,
-      discountType: 'percentage' as const,
+      discountType: 'percentage',
       discountValue: 0,
       subtotal: sellPrice,
-      simpleDescription: product.simple_description || '',
-      detailedDescription: product.full_description || '',
-      imageUrl: product.image_urls?.[0] || product.image_url || '',
+      simpleDescription: product.simple_description ?? product.simpleDescription ?? '',
+      detailedDescription: product.full_description ?? product.detailedDescription ?? '',
+      imageUrl,
     });
-    
+
     setShowProductSearch(false);
-    
-    // Atualizar subtotal após um pequeno delay para garantir que o item foi adicionado
+
+    // Atualiza subtotal da seção logo após inserir
     setTimeout(() => {
-      const items = form.getValues(`sections.${sectionIndex}.items`);
-      const subtotal = items.reduce((sum, item) => sum + (item.subtotal || 0), 0);
-      form.setValue(`sections.${sectionIndex}.subtotal`, subtotal, { shouldDirty: true });
-    }, 50);
+      updateSectionSubtotal();
+    }, 0);
   };
 
   const handleRemove = (index: number) => {

@@ -77,11 +77,16 @@ export function PaymentConditionsEditor({ form }: Props) {
     if (method) {
       form.setValue(`paymentConditions.${index}.methodId`, methodId);
       form.setValue(`paymentConditions.${index}.methodName`, method.name);
+      form.setValue(`paymentConditions.${index}.paymentType`, method.type || (method.name?.toLowerCase().includes('pix') ? 'pix' : 'other'));
+      form.setValue(`paymentConditions.${index}.brand`, '');
       
-      // Reset installments to 1 when changing method
-      form.setValue(`paymentConditions.${index}.installments`, 1);
-      form.setValue(`paymentConditions.${index}.installmentValue`, total);
+      // Reset parcels
+      const max = method.max_installments || 1;
+      const installments = max > 1 && (method.type === 'card' || method.type === 'financing') ? 1 : 1;
+      form.setValue(`paymentConditions.${index}.installments`, installments);
+      form.setValue(`paymentConditions.${index}.installmentValue`, total / installments);
       form.setValue(`paymentConditions.${index}.totalValue`, total);
+      form.setValue(`paymentConditions.${index}.paymentFee`, 0);
     }
   };
 
@@ -93,11 +98,13 @@ export function PaymentConditionsEditor({ form }: Props) {
 
     if (method && installments > 0) {
       form.setValue(`paymentConditions.${index}.installments`, installments);
-      
-      // Calculate installment value
       const installmentValue = total / installments;
       form.setValue(`paymentConditions.${index}.installmentValue`, installmentValue);
       form.setValue(`paymentConditions.${index}.totalValue`, total);
+
+      // calcular taxa aproximada
+      const fee = computePaymentFee(total, installments, method, form.getValues(`paymentConditions.${index}.brand`));
+      form.setValue(`paymentConditions.${index}.paymentFee`, fee);
     }
   };
 
@@ -111,11 +118,37 @@ export function PaymentConditionsEditor({ form }: Props) {
           const installments = form.getValues(`paymentConditions.${index}.installments`) || 1;
           form.setValue(`paymentConditions.${index}.totalValue`, total);
           form.setValue(`paymentConditions.${index}.installmentValue`, total / installments);
+          const method = paymentMethods.find((m) => m.id === form.getValues(`paymentConditions.${index}.methodId`));
+          const brand = form.getValues(`paymentConditions.${index}.brand`);
+          const fee = method ? computePaymentFee(total, installments, method, brand) : 0;
+          form.setValue(`paymentConditions.${index}.paymentFee`, fee);
         });
       }
     });
     return () => subscription.unsubscribe();
-  }, [form]);
+  }, [form, paymentMethods]);
+
+  // Helper para calcular taxa aproximada do meio de pagamento
+  function computePaymentFee(total: number, installments: number, method: any, brand?: string) {
+    if (!method || total <= 0) return 0;
+    const t = (method.type || '').toLowerCase();
+    if (t === 'pix' || method.name?.toLowerCase().includes('pix')) return 0;
+
+    // Se houver configuração por parcela
+    const feePerInst = (method as any).fee_per_installment;
+    if (Array.isArray(feePerInst)) {
+      const found = feePerInst.find((f: any) => {
+        const k = Number(f.installments ?? f.parcels ?? f.n ?? 0);
+        return k === Number(installments);
+      });
+      const perc = Number(found?.percentage ?? found?.fee ?? 0);
+      return (total * perc) / 100;
+    }
+
+    // Fallback para taxa percentual padrão
+    const perc = Number((method as any).fee_percentage || 0);
+    return (total * perc) / 100;
+  }
 
   return (
     <Card>
@@ -146,19 +179,20 @@ export function PaymentConditionsEditor({ form }: Props) {
           fields.map((field, index) => {
             const condition = form.watch(`paymentConditions.${index}`);
             const method = paymentMethods.find((m) => m.id === condition?.methodId);
+            const availableBrands = method?.card_brands_config ? Object.keys(method.card_brands_config as any) : [];
             
             // Determinar se o método aceita parcelamento
             const supportsInstallments = method && 
               (method.type === 'card' || method.type === 'financing') &&
               (method.max_installments || 1) > 1;
             
-            // Get max installments from card_brands_config or fallback to max_installments
+            // Get max installments (considerando marca escolhida)
             let maxInstallments = 1;
-            if (method?.card_brands_config) {
+            if (method?.card_brands_config && condition?.brand) {
               const config = method.card_brands_config as any;
-              const visaConfig = config.visa || config.mastercard || config.elo;
-              if (visaConfig?.credit_max_installments) {
-                maxInstallments = visaConfig.credit_max_installments;
+              const brandCfg = config[condition.brand];
+              if (brandCfg?.credit_max_installments) {
+                maxInstallments = brandCfg.credit_max_installments;
               }
             } else if (method?.max_installments) {
               maxInstallments = method.max_installments;
@@ -198,13 +232,36 @@ export function PaymentConditionsEditor({ form }: Props) {
                     </Select>
                   </div>
 
+                  {availableBrands.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Bandeira do Cartão *</Label>
+                      <Select
+                        value={condition?.brand || ''}
+                        onValueChange={(value) => {
+                          form.setValue(`paymentConditions.${index}.brand`, value);
+                          handleInstallmentsChange(index, 1);
+                        }}
+                        disabled={!condition?.methodId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a bandeira" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableBrands.map((b) => (
+                            <SelectItem key={b} value={b}>{b.toUpperCase()}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   {supportsInstallments ? (
                     <div className="space-y-2">
                       <Label>Número de Parcelas *</Label>
                       <Select
                         value={String(condition?.installments || 1)}
                         onValueChange={(value) => handleInstallmentsChange(index, Number(value))}
-                        disabled={!condition?.methodId}
+                        disabled={!condition?.methodId || (availableBrands.length > 0 && !condition?.brand)}
                       >
                         <SelectTrigger>
                           <SelectValue />

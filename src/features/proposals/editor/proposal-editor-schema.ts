@@ -43,9 +43,12 @@ export const PaymentConditionSchema = z.object({
   id: z.string().default(() => crypto.randomUUID()),
   methodId: z.string().min(1, 'Forma de pagamento obrigatória'),
   methodName: z.string().optional(),
+  paymentType: z.string().optional(), // pix, card, boleto, etc
+  brand: z.string().optional(), // visa, mastercard, elo...
   installments: z.number().min(1, 'Parcelas deve ser >= 1').default(1),
   installmentValue: z.number().min(0, 'Valor da parcela deve ser >= 0'),
   totalValue: z.number().min(0, 'Valor total deve ser >= 0'),
+  paymentFee: z.number().min(0).default(0), // taxa do meio de pagamento para afetar margem
   details: z.string().optional(),
 });
 

@@ -10,6 +10,7 @@ interface Props {
 
 export function TotalsCard({ form }: Props) {
   const sections = form.watch('sections');
+  const paymentConditions = form.watch('paymentConditions');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -29,11 +30,19 @@ export function TotalsCard({ form }: Props) {
       }, 0);
     }, 0);
 
-    const margin = subtotal > 0 ? ((subtotal - cost) / subtotal) * 100 : 0;
+    const marginBaseTotal = subtotal;
+
+    // considerar taxa do meio de pagamento (primeira condição)
+    const paymentFee = Array.isArray(paymentConditions) && paymentConditions.length > 0
+      ? (paymentConditions[0]?.paymentFee || 0)
+      : 0;
+
+    const costWithFees = cost + paymentFee;
+    const margin = marginBaseTotal > 0 ? ((marginBaseTotal - costWithFees) / marginBaseTotal) * 100 : 0;
 
     return {
       subtotal,
-      cost,
+      cost: costWithFees,
       margin,
       total: subtotal,
     };
@@ -60,7 +69,7 @@ export function TotalsCard({ form }: Props) {
         <Separator />
 
         <div className="flex justify-between items-center text-sm">
-          <span className="text-muted-foreground">Custo Total:</span>
+          <span className="text-muted-foreground">Custo Total + Taxas:</span>
           <span className="font-medium">{formatCurrency(totals.cost)}</span>
         </div>
 

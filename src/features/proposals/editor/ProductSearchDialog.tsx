@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -48,23 +49,7 @@ export function ProductSearchDialog({ open, onClose, onSelect }: Props) {
   });
 
   const handleSelect = (product: any) => {
-    // Use first image from image_urls array if available, fallback to image_url
-    const imageUrl = product.image_urls?.[0] || product.image_url;
-    
-    onSelect({
-      productId: product.id,
-      productName: product.name,
-      brandId: product.brands?.id,
-      brandName: product.brands?.name,
-      model: product.unit,
-      sku: product.sku,
-      qty: 1,
-      unitPrice: Number(product.sell_price || 0),
-      subtotal: Number(product.sell_price || 0),
-      simpleDescription: product.simple_description,
-      detailedDescription: product.full_description,
-      imageUrl,
-    });
+    onSelect(product);
     onClose();
   };
 
@@ -80,6 +65,7 @@ export function ProductSearchDialog({ open, onClose, onSelect }: Props) {
       <DialogContent className="max-w-4xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Buscar Produto</DialogTitle>
+          <DialogDescription>Pesquise e selecione um produto para adicionar à proposta</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
