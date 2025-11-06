@@ -42,7 +42,7 @@ export default function BriefingsPage() {
   const { data: briefings = [], isLoading } = useQuery({
     queryKey: ['briefings', profile?.organization_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('briefings')
         .select(`
           *,
@@ -52,7 +52,7 @@ export default function BriefingsPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as any as Briefing[];
+      return (data || []) as Briefing[];
     },
     enabled: !!profile?.organization_id,
   });

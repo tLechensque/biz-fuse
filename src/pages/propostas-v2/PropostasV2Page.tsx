@@ -50,7 +50,7 @@ export default function PropostasV2Page() {
   const { data: proposals = [], isLoading } = useQuery({
     queryKey: ['proposals-v2', profile?.organization_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('proposals_v2')
         .select(`
           *,
@@ -60,7 +60,7 @@ export default function PropostasV2Page() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []) as any as ProposalV2[];
+      return (data || []) as ProposalV2[];
     },
     enabled: !!profile?.organization_id,
   });
