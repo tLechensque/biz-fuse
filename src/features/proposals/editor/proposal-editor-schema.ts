@@ -11,6 +11,9 @@ export const ProposalItemSchema = z.object({
   sku: z.string().optional(),
   qty: z.number().min(0.01, 'Quantidade deve ser maior que 0'),
   unitPrice: z.number().min(0, 'Preço unitário deve ser >= 0'),
+  costPrice: z.number().optional(), // preço de custo
+  discountEnabled: z.boolean().default(false),
+  discountValue: z.number().min(0).default(0), // valor de desconto
   subtotal: z.number(),
   simpleDescription: z.string().optional(),
   detailedDescription: z.string().optional(),

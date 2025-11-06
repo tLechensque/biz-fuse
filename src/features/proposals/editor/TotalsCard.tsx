@@ -19,12 +19,22 @@ export function TotalsCard({ form }: Props) {
   };
 
   const calculateTotals = () => {
-    const subtotal = sections
-      .filter((s) => !s.excludeFromPayment)
-      .reduce((sum, s) => sum + s.subtotal, 0);
+    const filteredSections = sections.filter((s) => !s.excludeFromPayment);
+    
+    const subtotal = filteredSections.reduce((sum, s) => sum + s.subtotal, 0);
+    
+    const cost = filteredSections.reduce((sum, s) => {
+      return sum + s.items.reduce((itemSum, item) => {
+        return itemSum + (item.costPrice || 0) * item.qty;
+      }, 0);
+    }, 0);
+
+    const margin = subtotal > 0 ? ((subtotal - cost) / subtotal) * 100 : 0;
 
     return {
       subtotal,
+      cost,
+      margin,
       total: subtotal,
     };
   };
@@ -49,10 +59,28 @@ export function TotalsCard({ form }: Props) {
 
         <Separator />
 
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-muted-foreground">Custo Total:</span>
+          <span className="font-medium">{formatCurrency(totals.cost)}</span>
+        </div>
+
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-muted-foreground">Subtotal:</span>
+          <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
+        </div>
+
+        <Separator />
+
         <div className="flex justify-between items-center pt-2">
           <span className="text-lg font-bold">Total:</span>
           <span className="text-2xl font-bold text-primary">
             {formatCurrency(totals.total)}
+          </span>
+        </div>
+
+        <div className="text-sm text-muted-foreground text-right">
+          Margem: <span className={totals.margin > 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+            {totals.margin.toFixed(1)}%
           </span>
         </div>
       </CardContent>

@@ -193,40 +193,58 @@ export function PaymentConditionsEditor({ form }: Props) {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Número de Parcelas *</Label>
-                    <Select
-                      value={String(condition?.installments || 1)}
-                      onValueChange={(value) => handleInstallmentsChange(index, Number(value))}
-                      disabled={!condition?.methodId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((num) => (
-                          <SelectItem key={num} value={String(num)}>
-                            {num}x
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {maxInstallments > 1 ? (
+                    <div className="space-y-2">
+                      <Label>Número de Parcelas *</Label>
+                      <Select
+                        value={String(condition?.installments || 1)}
+                        onValueChange={(value) => handleInstallmentsChange(index, Number(value))}
+                        disabled={!condition?.methodId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((num) => (
+                            <SelectItem key={num} value={String(num)}>
+                              {num}x
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Tipo de Pagamento</Label>
+                      <div className="p-2 bg-muted rounded text-sm">
+                        À vista
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {condition?.methodId && (
                   <div className="p-3 bg-muted rounded-lg space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Valor da Parcela:</span>
-                      <span className="font-semibold">{formatCurrency(condition.installmentValue || 0)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Total:</span>
-                      <span className="font-bold text-primary">{formatCurrency(condition.totalValue || 0)}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {condition.installments}x de {formatCurrency(condition.installmentValue || 0)} = {formatCurrency(condition.totalValue || 0)}
-                    </p>
+                    {maxInstallments > 1 ? (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Valor da Parcela:</span>
+                          <span className="font-semibold">{formatCurrency(condition.installmentValue || 0)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Total:</span>
+                          <span className="font-bold text-primary">{formatCurrency(condition.totalValue || 0)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {condition.installments}x de {formatCurrency(condition.installmentValue || 0)} = {formatCurrency(condition.totalValue || 0)}
+                        </p>
+                      </>
+                    ) : (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total à vista:</span>
+                        <span className="font-bold text-primary">{formatCurrency(condition.totalValue || 0)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

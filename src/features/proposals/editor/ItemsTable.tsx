@@ -2,6 +2,8 @@ import { UseFormReturn, useFieldArray } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -10,10 +12,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Trash2, Plus, Copy, ArrowUp } from 'lucide-react';
+import { Trash2, Plus, ArrowUpCircle } from 'lucide-react';
 import { ProposalEditorForm } from './proposal-editor-schema';
 import { ProductSearchDialog } from './ProductSearchDialog';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface Props {
   form: UseFormReturn<ProposalEditorForm>;
@@ -39,15 +41,24 @@ export function ItemsTable({ form, sectionIndex }: Props) {
 
   const handleAddProduct = (product: any) => {
     append({
-      ...product,
       id: crypto.randomUUID(),
+      productId: product.id,
+      productName: product.name,
+      brandId: product.brand_id,
+      brandName: product.brand,
+      model: product.model || '',
+      sku: product.sku || '',
+      qty: 1,
+      unitPrice: Number(product.sell_price || 0),
+      costPrice: Number(product.cost_price || 0),
+      discountEnabled: false,
+      discountValue: 0,
+      subtotal: Number(product.sell_price || 0),
+      simpleDescription: product.simple_description || '',
+      detailedDescription: product.full_description || '',
+      imageUrl: product.image_urls?.[0] || product.image_url || '',
     });
-    updateSectionSubtotal();
-  };
-
-  const handleDuplicate = (index: number) => {
-    const item = form.getValues(`sections.${sectionIndex}.items.${index}`);
-    append({ ...item, id: crypto.randomUUID() });
+    setShowProductSearch(false);
     updateSectionSubtotal();
   };
 
@@ -58,8 +69,11 @@ export function ItemsTable({ form, sectionIndex }: Props) {
 
   const updateItemSubtotal = (itemIndex: number) => {
     const item = form.getValues(`sections.${sectionIndex}.items.${itemIndex}`);
-    const basePrice = item.upgradeUnitPrice || item.unitPrice;
-    const subtotal = item.qty * basePrice;
+    const baseSubtotal = item.qty * item.unitPrice;
+    const discount = item.discountEnabled ? item.discountValue : 0;
+    const upgradeValue = item.upgradeDelta || 0;
+    const subtotal = baseSubtotal - discount + upgradeValue;
+    
     form.setValue(`sections.${sectionIndex}.items.${itemIndex}.subtotal`, subtotal, {
       shouldDirty: true,
     });
@@ -70,6 +84,11 @@ export function ItemsTable({ form, sectionIndex }: Props) {
     const items = form.getValues(`sections.${sectionIndex}.items`);
     const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
     form.setValue(`sections.${sectionIndex}.subtotal`, subtotal, { shouldDirty: true });
+  };
+
+  const handleOpenUpgradeDialog = (index: number) => {
+    setUpgradeTargetIndex(index);
+    setShowUpgradeDialog(true);
   };
 
   return (
@@ -109,9 +128,9 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                 <TableHead>Marca</TableHead>
                 <TableHead className="w-24">Qtd</TableHead>
                 <TableHead className="w-32">Unitário</TableHead>
+                <TableHead className="w-40">Desconto</TableHead>
                 <TableHead className="w-32">Subtotal</TableHead>
-                <TableHead className="w-48">Upgrade</TableHead>
-                <TableHead className="w-24 text-right">Ações</TableHead>
+                <TableHead className="w-24 text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -169,65 +188,64 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                         className="w-28"
                       />
                     </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatCurrency(item.subtotal)}
-                    </TableCell>
                     <TableCell>
-                      {item.upgradeProductName ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <ArrowUp className="w-4 h-4 text-primary" />
-                            <span className="text-sm font-medium">{item.upgradeProductName}</span>
-                          </div>
-                          <Badge variant="secondary" className="text-xs">
-                            +{formatCurrency(item.upgradeDelta || 0)}
-                          </Badge>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              form.setValue(`sections.${sectionIndex}.items.${index}.upgradeProductId`, undefined);
-                              form.setValue(`sections.${sectionIndex}.items.${index}.upgradeProductName`, undefined);
-                              form.setValue(`sections.${sectionIndex}.items.${index}.upgradeUnitPrice`, undefined);
-                              form.setValue(`sections.${sectionIndex}.items.${index}.upgradeDelta`, undefined);
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            checked={item.discountEnabled}
+                            onCheckedChange={(checked) => {
+                              form.setValue(
+                                `sections.${sectionIndex}.items.${index}.discountEnabled`,
+                                !!checked
+                              );
                               updateItemSubtotal(index);
                             }}
-                            className="text-xs"
-                          >
-                            Remover
-                          </Button>
+                          />
+                          <Label className="text-xs">Aplicar</Label>
                         </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setUpgradeTargetIndex(index);
-                            setShowUpgradeDialog(true);
-                          }}
-                        >
-                          <ArrowUp className="w-4 h-4 mr-2" />
-                          Adicionar
-                        </Button>
+                        {item.discountEnabled && (
+                          <Input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            placeholder="R$ 0,00"
+                            {...form.register(
+                              `sections.${sectionIndex}.items.${index}.discountValue`,
+                              { valueAsNumber: true }
+                            )}
+                            onChange={() => updateItemSubtotal(index)}
+                            className="w-28"
+                          />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-semibold">
+                        {formatCurrency(item.subtotal)}
+                      </div>
+                      {item.upgradeProductName && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          + Upgrade: {item.upgradeProductName} (+{formatCurrency(item.upgradeDelta || 0)})
+                        </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-1">
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleDuplicate(index)}
+                          size="icon"
+                          onClick={() => handleOpenUpgradeDialog(index)}
+                          title="Adicionar Upgrade"
                         >
-                          <Copy className="w-4 h-4" />
+                          <ArrowUpCircle className="w-4 h-4 text-primary" />
                         </Button>
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleRemove(index)}
+                          title="Remover Item"
                         >
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
@@ -237,13 +255,13 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                 );
               })}
               <TableRow className="bg-muted/50">
-                <TableCell colSpan={5} className="text-right font-semibold">
+                <TableCell colSpan={6} className="text-right font-semibold">
                   Subtotal da Seção:
                 </TableCell>
                 <TableCell className="font-bold text-lg">
                   {formatCurrency(form.watch(`sections.${sectionIndex}.subtotal`) || 0)}
                 </TableCell>
-                <TableCell colSpan={2}></TableCell>
+                <TableCell></TableCell>
               </TableRow>
             </TableBody>
           </Table>
