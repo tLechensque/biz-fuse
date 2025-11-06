@@ -1,0 +1,114 @@
+/* Print CSS v2 - A4 optimized */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm;
+  }
+
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-sans, Inter, sans-serif);
+    font-size: var(--text-base, 1rem);
+    line-height: var(--leading-normal, 1.5);
+    color: hsl(var(--color-foreground, 0 0% 10%));
+  }
+
+  /* Page breaks */
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .print-break-after {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .print-break-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Evitar quebras em elementos importantes */
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Tabelas */
+  table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Imagens */
+  img {
+    max-width: 100%;
+    height: auto;
+    break-inside: avoid;
+  }
+
+  /* Ocultar elementos não imprimíveis */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Links */
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /* Remover interatividade */
+  button,
+  input,
+  select,
+  textarea {
+    display: none;
+  }
+}
+
+/* Utilidades sempre disponíveis */
+.v2-full-width {
+  width: 100%;
+}
+
+.v2-text-center {
+  text-align: center;
+}
+
+.v2-text-right {
+  text-align: right;
+}
+
+.v2-text-left {
+  text-align: left;
+}
+
+.v2-font-bold {
+  font-weight: var(--font-bold, 700);
+}
+
+.v2-font-semibold {
+  font-weight: var(--font-semibold, 600);
+}
+
+.v2-font-medium {
+  font-weight: var(--font-medium, 500);
+}

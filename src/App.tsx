@@ -22,6 +22,8 @@ import DiscountsManagement from "./pages/management/DiscountsManagement";
 import PortfolioManagement from "./pages/management/PortfolioManagement";
 import TemplatesManagement from "./pages/management/TemplatesManagement";
 import TemplateEditor from "./pages/templates/TemplateEditor";
+import TemplateEditorV2 from "./pages/templates-v2/TemplateEditorV2";
+import PreviewV2 from "./pages/templates-v2/PreviewV2";
 import ProposalPreview from "./pages/preview/ProposalPreview";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { ProfileSetup } from "./components/ProfileSetup";
@@ -49,8 +51,9 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<Index />} />
               
-              {/* Preview route (can be public for PDF generation) */}
+              {/* Preview routes (can be public for PDF generation) */}
               <Route path="/preview/:proposalId" element={<ProposalPreview />} />
+              <Route path="/preview-v2/:proposalId" element={<PreviewV2 />} />
               
               {/* Protected routes with Layout */}
               <Route element={<ProtectedLayout />}>
@@ -71,6 +74,7 @@ const App = () => (
                 } />
                 <Route path="/templates" element={<TemplatesManagement />} />
                 <Route path="/templates/editor/:templateId" element={<TemplateEditor />} />
+                <Route path="/templates-v2/editor/:templateId" element={<TemplateEditorV2 />} />
                 <Route path="/portfolio" element={<PortfolioManagement />} />
                 <Route path="/payment-methods" element={<PaymentsManagement />} />
                 <Route path="/organization" element={<OrganizationSettings />} />

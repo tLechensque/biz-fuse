@@ -1,0 +1,256 @@
+{
+  "version": "v2",
+  "name": "Creative A4",
+  "root": {
+    "type": "Frame",
+    "id": "root",
+    "style": {
+      "padding": "24px",
+      "background": "white"
+    },
+    "children": [
+      {
+        "type": "Stack",
+        "direction": "column",
+        "gap": "32px",
+        "children": [
+          {
+            "type": "Frame",
+            "id": "header",
+            "style": {
+              "padding": "24px",
+              "background": "hsl(var(--color-primary))",
+              "borderRadius": "8px"
+            },
+            "children": [
+              {
+                "type": "Stack",
+                "direction": "row",
+                "justify": "between",
+                "align": "center",
+                "children": [
+                  {
+                    "type": "Stack",
+                    "direction": "column",
+                    "gap": "8px",
+                    "children": [
+                      {
+                        "type": "Text",
+                        "binding": {
+                          "path": "proposal.title"
+                        },
+                        "fontSize": "var(--text-3xl)",
+                        "fontWeight": "var(--font-bold)",
+                        "color": "white"
+                      },
+                      {
+                        "type": "Text",
+                        "binding": {
+                          "path": "proposal.code"
+                        },
+                        "fontSize": "var(--text-sm)",
+                        "color": "rgba(255,255,255,0.8)"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "Image",
+                    "binding": {
+                      "path": "organization.logoUrl"
+                    },
+                    "style": {
+                      "width": "120px",
+                      "height": "60px"
+                    },
+                    "objectFit": "contain"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Grid",
+            "cols": 2,
+            "gap": "24px",
+            "children": [
+              {
+                "type": "Frame",
+                "style": {
+                  "padding": "16px",
+                  "background": "hsl(var(--color-muted))",
+                  "borderRadius": "8px"
+                },
+                "children": [
+                  {
+                    "type": "Stack",
+                    "direction": "column",
+                    "gap": "8px",
+                    "children": [
+                      {
+                        "type": "Text",
+                        "content": "Cliente",
+                        "fontSize": "var(--text-sm)",
+                        "fontWeight": "var(--font-semibold)",
+                        "color": "hsl(var(--color-muted-foreground))"
+                      },
+                      {
+                        "type": "Text",
+                        "binding": {
+                          "path": "client.name"
+                        },
+                        "fontSize": "var(--text-lg)",
+                        "fontWeight": "var(--font-semibold)"
+                      },
+                      {
+                        "type": "Text",
+                        "binding": {
+                          "path": "client.email"
+                        },
+                        "fontSize": "var(--text-sm)"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "Frame",
+                "style": {
+                  "padding": "16px",
+                  "background": "hsl(var(--color-muted))",
+                  "borderRadius": "8px"
+                },
+                "children": [
+                  {
+                    "type": "Stack",
+                    "direction": "column",
+                    "gap": "8px",
+                    "children": [
+                      {
+                        "type": "Text",
+                        "content": "Organização",
+                        "fontSize": "var(--text-sm)",
+                        "fontWeight": "var(--font-semibold)",
+                        "color": "hsl(var(--color-muted-foreground))"
+                      },
+                      {
+                        "type": "Text",
+                        "binding": {
+                          "path": "organization.name"
+                        },
+                        "fontSize": "var(--text-lg)",
+                        "fontWeight": "var(--font-semibold)"
+                      },
+                      {
+                        "type": "Text",
+                        "binding": {
+                          "path": "organization.email"
+                        },
+                        "fontSize": "var(--text-sm)"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Divider"
+          },
+          {
+            "type": "Stack",
+            "direction": "column",
+            "gap": "16px",
+            "children": [
+              {
+                "type": "Text",
+                "content": "Itens da Proposta",
+                "fontSize": "var(--text-2xl)",
+                "fontWeight": "var(--font-bold)"
+              },
+              {
+                "type": "Table",
+                "dataBinding": {
+                  "path": "items"
+                },
+                "columns": [
+                  {
+                    "key": "product",
+                    "label": "Produto",
+                    "binding": {
+                      "path": "product.name"
+                    },
+                    "width": "40%"
+                  },
+                  {
+                    "key": "qty",
+                    "label": "Qtd",
+                    "binding": {
+                      "path": "qty"
+                    },
+                    "align": "center",
+                    "width": "10%"
+                  },
+                  {
+                    "key": "unitPrice",
+                    "label": "Preço Unit.",
+                    "binding": {
+                      "path": "unitPrice",
+                      "formatter": "brl"
+                    },
+                    "align": "right",
+                    "width": "25%"
+                  },
+                  {
+                    "key": "subtotal",
+                    "label": "Subtotal",
+                    "binding": {
+                      "path": "subtotal",
+                      "formatter": "brl"
+                    },
+                    "align": "right",
+                    "width": "25%"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "style": {
+              "padding": "24px",
+              "background": "hsl(var(--color-primary))",
+              "borderRadius": "8px"
+            },
+            "children": [
+              {
+                "type": "Stack",
+                "direction": "row",
+                "justify": "between",
+                "align": "center",
+                "children": [
+                  {
+                    "type": "Text",
+                    "content": "Total",
+                    "fontSize": "var(--text-2xl)",
+                    "fontWeight": "var(--font-bold)",
+                    "color": "white"
+                  },
+                  {
+                    "type": "Text",
+                    "binding": {
+                      "path": "totals.total",
+                      "formatter": "brl"
+                    },
+                    "fontSize": "var(--text-3xl)",
+                    "fontWeight": "var(--font-bold)",
+                    "color": "white"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

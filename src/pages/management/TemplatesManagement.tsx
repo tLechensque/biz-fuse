@@ -256,10 +256,20 @@ export default function TemplatesManagement() {
               Sistema modular de templates por blocos com variáveis dinâmicas
             </p>
           </div>
-          <Button onClick={handleNewTemplate} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Novo Template
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => navigate('/templates-v2/editor/new')} 
+              variant="outline"
+              className="gap-2"
+            >
+              <Layers className="w-4 h-4" />
+              Editor Visual v2 (BETA)
+            </Button>
+            <Button onClick={handleNewTemplate} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Novo Template v1
+            </Button>
+          </div>
         </div>
 
         {/* Info Card */}
