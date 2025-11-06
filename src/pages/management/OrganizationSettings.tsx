@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, Building2, Save, Plus, Pencil, Trash2, Phone, X, Search } from 'lucide-react';
+import { Loader2, Building2, Save, Plus, Pencil, Trash2, Phone, X, Search, Upload, Image as ImageIcon } from 'lucide-react';
 import { RoleGuard } from '@/components/auth/RoleGuard';
+import { ImageUpload } from '@/components/ui/image-upload';
 
 interface Organization {
   id: string;
@@ -30,6 +31,7 @@ interface Organization {
   telefone: string | null;
   email: string | null;
   tipo: 'matriz' | 'filial' | 'independente';
+  logo_url: string | null;
   created_at: string;
 }
 
@@ -41,6 +43,7 @@ export default function OrganizationSettings() {
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [additionalPhone, setAdditionalPhone] = useState(false);
   const [searchingCep, setSearchingCep] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     razao_social: '',
@@ -56,6 +59,7 @@ export default function OrganizationSettings() {
     telefone: '',
     email: '',
     tipo: 'independente' as 'matriz' | 'filial' | 'independente',
+    logo_url: '',
   });
 
   const { data: organizations = [], isLoading } = useQuery({
@@ -164,9 +168,42 @@ export default function OrganizationSettings() {
       telefone: org.telefone || '',
       email: org.email || '',
       tipo: org.tipo,
+      logo_url: org.logo_url || '',
     });
     setAdditionalPhone(!!org.telefone);
     setDialogOpen(true);
+  };
+
+  const handleLogoUpload = async (file: File) => {
+    if (!editingOrg && !profile?.organization_id) return;
+
+    setUploadingLogo(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${profile?.user_id}/${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('organization-logos')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('organization-logos')
+        .getPublicUrl(fileName);
+
+      setFormData({ ...formData, logo_url: publicUrl });
+      
+      toast({ title: 'Logo enviado com sucesso' });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao fazer upload',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingLogo(false);
+    }
   };
 
   const handleNewOrg = () => {
@@ -186,6 +223,7 @@ export default function OrganizationSettings() {
       telefone: '',
       email: '',
       tipo: 'independente',
+      logo_url: '',
     });
     setAdditionalPhone(false);
     setDialogOpen(true);
@@ -279,6 +317,54 @@ export default function OrganizationSettings() {
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Logo Upload */}
+                <div className="space-y-2 pb-4 border-b">
+                  <Label>Logomarca da Empresa</Label>
+                  <div className="flex items-center gap-4">
+                    {formData.logo_url ? (
+                      <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
+                        <img
+                          src={formData.logo_url}
+                          alt="Logo"
+                          className="w-full h-full object-contain"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-1 right-1"
+                          onClick={() => setFormData({ ...formData, logo_url: '' })}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="w-32 h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
+                        <ImageIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                        <span className="text-xs text-muted-foreground text-center px-2">
+                          Clique para enviar
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleLogoUpload(file);
+                          }}
+                          disabled={uploadingLogo}
+                        />
+                      </label>
+                    )}
+                    {uploadingLogo && (
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Formatos aceitos: JPG, PNG, SVG, WEBP • Tamanho máximo: 5MB
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nome Fantasia *</Label>

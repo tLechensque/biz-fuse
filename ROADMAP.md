@@ -169,9 +169,21 @@
 ---
 
 #### 📝 Módulo de Briefing
-**Status**: Planejado  
-**Prioridade**: Média  
+**Status**: 🚧 EM DESENVOLVIMENTO  
+**Prioridade**: Alta  
 **Descrição**: Captura de requisitos do cliente
+
+**Fase 1 - Estrutura Base**: ✅ Implementado (Jan 2025)
+- [x] Tabela `briefings` com campos flexíveis (JSONB)
+- [x] RLS policies completas
+- [x] Documentação em `docs/PROPOSTAS_BRIEFING_V2.md`
+- [x] Índices de performance
+
+**Fase 2 - Interface** (Em andamento):
+- [ ] Página de listagem de briefings
+- [ ] Formulário de criação/edição
+- [ ] Upload de anexos
+- [ ] Conversão briefing → proposta
 
 **Features**:
 - Formulários customizáveis de briefing

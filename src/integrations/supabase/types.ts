@@ -140,6 +140,7 @@ export type Database = {
           email: string | null
           estado: string | null
           id: string
+          logo_url: string | null
           matriz_id: string | null
           name: string
           numero: string | null
@@ -160,6 +161,7 @@ export type Database = {
           email?: string | null
           estado?: string | null
           id?: string
+          logo_url?: string | null
           matriz_id?: string | null
           name: string
           numero?: string | null
@@ -180,6 +182,7 @@ export type Database = {
           email?: string | null
           estado?: string | null
           id?: string
+          logo_url?: string | null
           matriz_id?: string | null
           name?: string
           numero?: string | null
