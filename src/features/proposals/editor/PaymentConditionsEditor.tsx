@@ -147,8 +147,13 @@ export function PaymentConditionsEditor({ form }: Props) {
             const condition = form.watch(`paymentConditions.${index}`);
             const method = paymentMethods.find((m) => m.id === condition?.methodId);
             
+            // Determinar se o método aceita parcelamento
+            const supportsInstallments = method && 
+              (method.type === 'card' || method.type === 'financing') &&
+              (method.max_installments || 1) > 1;
+            
             // Get max installments from card_brands_config or fallback to max_installments
-            let maxInstallments = 12; // default
+            let maxInstallments = 1;
             if (method?.card_brands_config) {
               const config = method.card_brands_config as any;
               const visaConfig = config.visa || config.mastercard || config.elo;
@@ -193,7 +198,7 @@ export function PaymentConditionsEditor({ form }: Props) {
                     </Select>
                   </div>
 
-                  {maxInstallments > 1 ? (
+                  {supportsInstallments ? (
                     <div className="space-y-2">
                       <Label>Número de Parcelas *</Label>
                       <Select
@@ -225,7 +230,7 @@ export function PaymentConditionsEditor({ form }: Props) {
 
                 {condition?.methodId && (
                   <div className="p-3 bg-muted rounded-lg space-y-2">
-                    {maxInstallments > 1 ? (
+                    {supportsInstallments ? (
                       <>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Valor da Parcela:</span>

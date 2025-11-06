@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
   Edit,
   MoreHorizontal,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -46,6 +48,8 @@ const statusConfig = {
 export default function Proposals() {
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -80,6 +84,37 @@ export default function Proposals() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: async (proposalId: string) => {
+      const { error } = await supabase
+        .from('proposals')
+        .delete()
+        .eq('id', proposalId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proposals'] });
+      toast({
+        title: 'Proposta excluída',
+        description: 'A proposta foi excluída com sucesso.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao excluir proposta',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleDelete = (proposalId: string) => {
+    if (confirm('Tem certeza que deseja excluir esta proposta?')) {
+      deleteMutation.mutate(proposalId);
+    }
   };
 
   return (
@@ -195,6 +230,13 @@ export default function Proposals() {
                         <DropdownMenuItem>
                           <Send className="w-4 h-4 mr-2" />
                           Enviar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => handleDelete(proposal.id)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Excluir
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

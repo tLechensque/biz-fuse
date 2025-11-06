@@ -13,7 +13,8 @@ export const ProposalItemSchema = z.object({
   unitPrice: z.number().min(0, 'Preço unitário deve ser >= 0'),
   costPrice: z.number().optional(), // preço de custo
   discountEnabled: z.boolean().default(false),
-  discountValue: z.number().min(0).default(0), // valor de desconto
+  discountType: z.enum(['percentage', 'fixed']).default('percentage'), // tipo de desconto
+  discountValue: z.number().min(0).default(0), // valor ou % de desconto
   subtotal: z.number(),
   simpleDescription: z.string().optional(),
   detailedDescription: z.string().optional(),

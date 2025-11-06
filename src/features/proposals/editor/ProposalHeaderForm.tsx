@@ -16,6 +16,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { Plus, Calendar, FileText } from 'lucide-react';
 import { ProposalEditorForm } from './proposal-editor-schema';
 import { useState } from 'react';
+import { QuickClientDialog } from './QuickClientDialog';
 
 interface Props {
   form: UseFormReturn<ProposalEditorForm>;
@@ -174,6 +175,11 @@ export function ProposalHeaderForm({ form }: Props) {
           </p>
         </div>
       </CardContent>
+
+      <QuickClientDialog 
+        open={showNewClientDialog} 
+        onClose={() => setShowNewClientDialog(false)} 
+      />
     </Card>
   );
 }

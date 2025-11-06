@@ -13,6 +13,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Trash2, Plus, ArrowUpCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ProposalEditorForm } from './proposal-editor-schema';
 import { ProductSearchDialog } from './ProductSearchDialog';
 import { useState } from 'react';
@@ -40,26 +47,28 @@ export function ItemsTable({ form, sectionIndex }: Props) {
   };
 
   const handleAddProduct = (product: any) => {
-    append({
+    const newItem = {
       id: crypto.randomUUID(),
       productId: product.id,
       productName: product.name,
       brandId: product.brand_id,
-      brandName: product.brand,
+      brandName: product.brand || '',
       model: product.model || '',
       sku: product.sku || '',
       qty: 1,
       unitPrice: Number(product.sell_price || 0),
       costPrice: Number(product.cost_price || 0),
       discountEnabled: false,
+      discountType: 'percentage' as const,
       discountValue: 0,
       subtotal: Number(product.sell_price || 0),
       simpleDescription: product.simple_description || '',
       detailedDescription: product.full_description || '',
       imageUrl: product.image_urls?.[0] || product.image_url || '',
-    });
+    };
+    append(newItem);
     setShowProductSearch(false);
-    updateSectionSubtotal();
+    setTimeout(() => updateSectionSubtotal(), 100);
   };
 
   const handleRemove = (index: number) => {
@@ -70,9 +79,18 @@ export function ItemsTable({ form, sectionIndex }: Props) {
   const updateItemSubtotal = (itemIndex: number) => {
     const item = form.getValues(`sections.${sectionIndex}.items.${itemIndex}`);
     const baseSubtotal = item.qty * item.unitPrice;
-    const discount = item.discountEnabled ? item.discountValue : 0;
+    
+    let discountAmount = 0;
+    if (item.discountEnabled) {
+      if (item.discountType === 'percentage') {
+        discountAmount = baseSubtotal * (item.discountValue / 100);
+      } else {
+        discountAmount = item.discountValue;
+      }
+    }
+    
     const upgradeValue = item.upgradeDelta || 0;
-    const subtotal = baseSubtotal - discount + upgradeValue;
+    const subtotal = baseSubtotal - discountAmount + upgradeValue;
     
     form.setValue(`sections.${sectionIndex}.items.${itemIndex}.subtotal`, subtotal, {
       shouldDirty: true,
@@ -128,9 +146,9 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                 <TableHead>Marca</TableHead>
                 <TableHead className="w-24">Qtd</TableHead>
                 <TableHead className="w-32">Unitário</TableHead>
-                <TableHead className="w-40">Desconto</TableHead>
+                <TableHead className="w-48">Desconto</TableHead>
                 <TableHead className="w-32">Subtotal</TableHead>
-                <TableHead className="w-24 text-center">Ações</TableHead>
+                <TableHead className="w-16 text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -198,24 +216,50 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                                 `sections.${sectionIndex}.items.${index}.discountEnabled`,
                                 !!checked
                               );
+                              if (!checked) {
+                                form.setValue(
+                                  `sections.${sectionIndex}.items.${index}.discountValue`,
+                                  0
+                                );
+                              }
                               updateItemSubtotal(index);
                             }}
                           />
-                          <Label className="text-xs">Aplicar</Label>
+                          <Label className="text-xs">Aplicar desconto</Label>
                         </div>
                         {item.discountEnabled && (
-                          <Input
-                            type="number"
-                            min={0}
-                            step={0.01}
-                            placeholder="R$ 0,00"
-                            {...form.register(
-                              `sections.${sectionIndex}.items.${index}.discountValue`,
-                              { valueAsNumber: true }
-                            )}
-                            onChange={() => updateItemSubtotal(index)}
-                            className="w-28"
-                          />
+                          <div className="flex gap-2">
+                            <Select
+                              value={item.discountType || 'percentage'}
+                              onValueChange={(value) => {
+                                form.setValue(
+                                  `sections.${sectionIndex}.items.${index}.discountType`,
+                                  value as 'percentage' | 'fixed'
+                                );
+                                updateItemSubtotal(index);
+                              }}
+                            >
+                              <SelectTrigger className="w-20">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="percentage">%</SelectItem>
+                                <SelectItem value="fixed">R$</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              placeholder={item.discountType === 'percentage' ? '0' : '0,00'}
+                              {...form.register(
+                                `sections.${sectionIndex}.items.${index}.discountValue`,
+                                { valueAsNumber: true }
+                              )}
+                              onChange={() => updateItemSubtotal(index)}
+                              className="w-24"
+                            />
+                          </div>
                         )}
                       </div>
                     </TableCell>
