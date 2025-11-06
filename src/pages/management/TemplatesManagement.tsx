@@ -258,7 +258,11 @@ export default function TemplatesManagement() {
           </div>
           <div className="flex gap-2">
             <Button 
-              onClick={() => navigate('/templates-v2/editor/new')} 
+              onClick={() => {
+                const dialog = document.createElement('div');
+                // Usar CreateTemplateDialog via portal
+                navigate('/templates-v2/editor/new');
+              }}
               variant="outline"
               className="gap-2"
             >

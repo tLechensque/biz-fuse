@@ -1,6 +1,7 @@
 import React from 'react';
 import { Element } from '../runtime/props-schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,9 +11,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 interface InspectorPanelProps {
   element: Element | null;
   onUpdate: (updates: Partial<Element>) => void;
+  onDelete?: () => void;
 }
 
-export function InspectorPanel({ element, onUpdate }: InspectorPanelProps) {
+export function InspectorPanel({ element, onUpdate, onDelete }: InspectorPanelProps) {
   if (!element) {
     return (
       <Card className="h-full">
@@ -30,8 +32,18 @@ export function InspectorPanel({ element, onUpdate }: InspectorPanelProps) {
 
   return (
     <Card className="h-full">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-sm">Inspector: {element.type}</CardTitle>
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            className="text-destructive h-7 w-7 p-0"
+          >
+            ×
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="h-[calc(100vh-200px)]">
