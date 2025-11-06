@@ -230,13 +230,23 @@ blocks.map(block => {
 
 ### Geração de PDF
 
-**Método atual**: `window.print()` (browser nativo)
+**Método atual**: `window.print()` (browser nativo) ✅
 
-**Futuro (Fase 2)**: Edge Function com Puppeteer
-- Rota: POST `/api/print/:proposalId`
-- Auth + tenant check
-- Rate limit (10/min/tenant)
-- Retorna PDF em bytes
+**Edge Function Implementada** (Fase 2): ✅
+- Rota: `supabase/functions/generate-pdf`
+- Auth JWT obrigatório
+- Tenant ownership validation
+- Rate limit: 10 PDFs/min por organização
+- Logs de auditoria
+
+**Limitação**: Puppeteer não funciona em Deno Deploy (runtime Supabase)
+
+**Soluções para Puppeteer**:
+1. **Browserless.io** (Recomendado): Puppeteer as a Service - $99/mês
+2. **Servidor Node.js**: Deploy separado em Railway/Render
+3. **Fallback atual**: `window.print()` no navegador
+
+**Documentação completa**: `docs/PDF_GENERATION.md`
 
 **CSS Otimizado**:
 ```css

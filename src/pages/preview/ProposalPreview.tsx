@@ -67,8 +67,17 @@ export default function ProposalPreview() {
     theme: layout.theme,
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
+    // Usar window.print() diretamente é mais confiável que Edge Function
+    // A Edge Function está pronta para quando Puppeteer for configurado
     window.print();
+    
+    // Alternativa: chamar Edge Function (quando Puppeteer estiver configurado)
+    // import { generateProposalPdf } from '@/lib/pdf';
+    // const result = await generateProposalPdf({ proposalId: proposalId!, flags: { showDetails } });
+    // if (result.success && result.pdfUrl) {
+    //   window.open(result.pdfUrl, '_blank');
+    // }
   };
 
   return (

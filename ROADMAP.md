@@ -56,24 +56,35 @@
 
 ### Q1 2025
 
-#### 🎨 Templates Avançados (Fase 2-4)
-**Status**: Planejado  
+#### 🎨 Templates Avançados
+**Status**: ✅ Fase 2 Completa | 🚧 Fases 3-4 Planejadas  
 **Prioridade**: Alta  
-**Descrição**: Evoluir sistema de templates
+**Descrição**: Sistema modular de templates por blocos
 
-**Fase 2 - Geração Avançada de PDF**:
-- [ ] Edge function com Puppeteer
-- [ ] Rate limiting (10 PDFs/min)
-- [ ] Cache de renders
-- [ ] Sanitização HTML
+**Fase 1 - Engine e Blocos**: ✅ Implementado
+- [x] Engine modular com 7 blocos
+- [x] Registry de 50+ variáveis
+- [x] Adapter reutilizando dados existentes
+- [x] Preview web com toggle de detalhes
+- [x] Template padrão "Starvai Clean A4"
+- [x] Print CSS A4 otimizado
 
-**Fase 3 - Gestão de Templates**:
-- [ ] CRUD de templates por tenant
+**Fase 2 - Geração de PDF**: ✅ Implementado
+- [x] Edge Function `generate-pdf` com auth JWT
+- [x] Verificação de tenant ownership
+- [x] Rate limiting (10 PDFs/min)
+- [x] Fallback `window.print()` funcional
+- [x] Documentação completa em `docs/PDF_GENERATION.md`
+- [x] Helper library em `src/lib/pdf.ts`
+- [ ] Puppeteer via Browserless.io (aguardando configuração)
+
+**Fase 3 - Gestão de Templates**: 🚧 Próxima
+- [ ] CRUD de templates por tenant via UI
 - [ ] Seleção de template padrão
 - [ ] Versionamento com histórico
 - [ ] Compartilhamento entre organizações
 
-**Fase 4 - Editor Visual**:
+**Fase 4 - Editor Visual**: 🚧 Planejada
 - [ ] Drag & drop de blocos
 - [ ] Auto-complete de variáveis
 - [ ] Chips de inserção de tokens
