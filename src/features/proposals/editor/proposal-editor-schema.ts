@@ -15,14 +15,11 @@ export const ProposalItemSchema = z.object({
   simpleDescription: z.string().optional(),
   detailedDescription: z.string().optional(),
   imageUrl: z.string().optional(),
-});
-
-// ===== Upgrade Option (para seção Rede) =====
-export const UpgradeOptionSchema = z.object({
-  id: z.string().default(() => crypto.randomUUID()),
-  description: z.string().min(1, 'Descrição obrigatória'),
-  upgradeValue: z.number().min(0, 'Valor deve ser >= 0'),
-  totalWithUpgrade: z.number(), // calculado automaticamente
+  // Upgrade: produto alternativo para upgrade
+  upgradeProductId: z.string().optional(),
+  upgradeProductName: z.string().optional(),
+  upgradeUnitPrice: z.number().optional(),
+  upgradeDelta: z.number().optional(), // diferença de preço
 });
 
 // ===== Proposal Section =====
@@ -32,7 +29,6 @@ export const ProposalSectionSchema = z.object({
   order: z.number().default(0),
   visible: z.boolean().default(true),
   items: z.array(ProposalItemSchema).default([]),
-  upgrades: z.array(UpgradeOptionSchema).default([]),
   subtotal: z.number().default(0),
   excludeFromPayment: z.boolean().default(false), // para Aspiração
   specialNote: z.string().optional(), // nota específica (ex: Aspiração)
@@ -41,11 +37,12 @@ export const ProposalSectionSchema = z.object({
 // ===== Payment Condition =====
 export const PaymentConditionSchema = z.object({
   id: z.string().default(() => crypto.randomUUID()),
-  label: z.string().min(1, 'Label obrigatório'),
-  amount: z.number().min(0, 'Valor deve ser >= 0'),
-  details: z.string().optional(),
-  methodId: z.string().optional(),
+  methodId: z.string().min(1, 'Forma de pagamento obrigatória'),
   methodName: z.string().optional(),
+  installments: z.number().min(1, 'Parcelas deve ser >= 1').default(1),
+  installmentValue: z.number().min(0, 'Valor da parcela deve ser >= 0'),
+  totalValue: z.number().min(0, 'Valor total deve ser >= 0'),
+  details: z.string().optional(),
 });
 
 // ===== Notes and Inclusions =====
@@ -63,6 +60,7 @@ export const ProposalEditorFormSchema = z.object({
   code: z.string().optional(),
   issueDate: z.string().default(() => new Date().toISOString().split('T')[0]),
   validityDays: z.number().min(1, 'Validade deve ser >= 1 dia').default(3),
+  status: z.enum(['DRAFT', 'SENT', 'APPROVED', 'REJECTED']).default('DRAFT'),
   
   // Sections
   sections: z.array(ProposalSectionSchema).min(1, 'Ao menos uma seção obrigatória'),
@@ -79,7 +77,6 @@ export const ProposalEditorFormSchema = z.object({
 
 // ===== Types =====
 export type ProposalItem = z.infer<typeof ProposalItemSchema>;
-export type UpgradeOption = z.infer<typeof UpgradeOptionSchema>;
 export type ProposalSection = z.infer<typeof ProposalSectionSchema>;
 export type PaymentCondition = z.infer<typeof PaymentConditionSchema>;
 export type Notes = z.infer<typeof NotesSchema>;
@@ -87,8 +84,8 @@ export type ProposalEditorForm = z.infer<typeof ProposalEditorFormSchema>;
 
 // ===== Default Sections (templates) =====
 export const DEFAULT_SECTIONS: Partial<ProposalSection>[] = [
-  { name: 'Home Theater e Som Ambiente', order: 0, visible: true },
-  { name: 'Sistema de Rede', order: 1, visible: true },
-  { name: 'Aspiração Central', order: 2, visible: true, excludeFromPayment: true },
-  { name: 'Serviços', order: 3, visible: true },
+  { name: 'Home Theater e Som Ambiente', order: 0, visible: true, items: [], subtotal: 0 },
+  { name: 'Sistema de Rede', order: 1, visible: true, items: [], subtotal: 0 },
+  { name: 'Aspiração Central', order: 2, visible: true, excludeFromPayment: true, items: [], subtotal: 0 },
+  { name: 'Serviços', order: 3, visible: true, items: [], subtotal: 0 },
 ];

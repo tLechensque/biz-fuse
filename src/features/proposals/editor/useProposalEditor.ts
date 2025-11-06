@@ -31,7 +31,6 @@ export function useProposalEditor(proposalId?: string) {
         order: i,
         visible: true,
         items: [],
-        upgrades: [],
         subtotal: 0,
         excludeFromPayment: s.excludeFromPayment || false,
         specialNote: s.name === 'Aspiração Central' 
@@ -105,7 +104,6 @@ export function useProposalEditor(proposalId?: string) {
           order: order++,
           visible: true,
           items,
-          upgrades: [],
           subtotal,
           excludeFromPayment: name === 'Aspiração Central',
           specialNote: name === 'Aspiração Central'
@@ -220,15 +218,10 @@ export function useProposalEditor(proposalId?: string) {
     const subtotal = sections
       .filter((s) => !s.excludeFromPayment)
       .reduce((sum, s) => sum + s.subtotal, 0);
-    
-    const upgradesTotal = sections
-      .flatMap((s) => s.upgrades)
-      .reduce((sum, u) => sum + u.upgradeValue, 0);
 
     return {
       subtotal,
-      upgradesTotal,
-      total: subtotal + upgradesTotal,
+      total: subtotal,
     };
   };
 

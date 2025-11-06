@@ -62,7 +62,6 @@ export function ProposalSectionsManager({ form }: Props) {
       order: fields.length,
       visible: true,
       items: [],
-      upgrades: [],
       subtotal: 0,
       excludeFromPayment: false,
     });

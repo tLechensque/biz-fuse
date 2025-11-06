@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Save, Eye, ArrowLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Save, Eye, ArrowLeft, Send } from 'lucide-react';
 import { FormProvider } from 'react-hook-form';
 import { useProposalEditor } from '@/features/proposals/editor/useProposalEditor';
 import { ProposalHeaderForm } from '@/features/proposals/editor/ProposalHeaderForm';
@@ -11,6 +12,7 @@ import { ProposalSectionsManager } from '@/features/proposals/editor/ProposalSec
 import { PaymentConditionsEditor } from '@/features/proposals/editor/PaymentConditionsEditor';
 import { NotesEditor } from '@/features/proposals/editor/NotesEditor';
 import { TotalsCard } from '@/features/proposals/editor/TotalsCard';
+import { toast } from 'sonner';
 
 export default function ProposalEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +32,29 @@ export default function ProposalEditorPage() {
     if (existingProposal) {
       navigate(`/preview/${existingProposal.id}`);
     }
+  };
+
+  const handleSend = () => {
+    form.handleSubmit((data) => {
+      const updatedData = { ...data, status: 'SENT' as const };
+      saveMutation.mutate(updatedData, {
+        onSuccess: () => {
+          toast.success('Proposta enviada com sucesso!');
+        },
+      });
+    })();
+  };
+
+  const status = form.watch('status');
+  const getStatusBadge = () => {
+    const variants: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
+      DRAFT: { label: 'Rascunho', variant: 'secondary' },
+      SENT: { label: 'Enviada', variant: 'default' },
+      APPROVED: { label: 'Aprovada', variant: 'default' },
+      REJECTED: { label: 'Rejeitada', variant: 'destructive' },
+    };
+    const config = variants[status] || variants.DRAFT;
+    return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   if (isLoading) {
@@ -54,9 +79,12 @@ export default function ProposalEditorPage() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">
-                {isNew ? 'Nova Proposta' : 'Editar Proposta'}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold">
+                  {isNew ? 'Nova Proposta' : 'Editar Proposta'}
+                </h1>
+                {!isNew && getStatusBadge()}
+              </div>
               <p className="text-muted-foreground mt-1">
                 {isNew
                   ? 'Preencha os dados para criar uma nova proposta'
@@ -81,13 +109,26 @@ export default function ProposalEditorPage() {
             </div>
 
             {!isNew && (
-              <Button variant="outline" onClick={handlePreview}>
-                <Eye className="w-4 h-4 mr-2" />
-                Preview
-              </Button>
+              <>
+                <Button variant="outline" onClick={handlePreview}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Preview
+                </Button>
+
+                {status === 'DRAFT' && (
+                  <Button variant="default" onClick={handleSend} disabled={saveMutation.isPending}>
+                    {saveMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4 mr-2" />
+                    )}
+                    Enviar
+                  </Button>
+                )}
+              </>
             )}
 
-            <Button onClick={handleSave} disabled={saveMutation.isPending}>
+            <Button variant="secondary" onClick={handleSave} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (

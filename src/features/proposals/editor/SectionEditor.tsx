@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { GripVertical, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { ProposalEditorForm } from './proposal-editor-schema';
 import { ItemsTable } from './ItemsTable';
-import { UpgradesEditor } from './UpgradesEditor';
 
 interface Props {
   form: UseFormReturn<ProposalEditorForm>;
@@ -19,7 +18,6 @@ interface Props {
 
 export function SectionEditor({ form, sectionIndex, onRemove }: Props) {
   const section = form.watch(`sections.${sectionIndex}`);
-  const isNetwork = section.name.toLowerCase().includes('rede');
 
   return (
     <Card>
@@ -68,9 +66,6 @@ export function SectionEditor({ form, sectionIndex, onRemove }: Props) {
       <CardContent className="space-y-6">
         {/* Items Table */}
         <ItemsTable form={form} sectionIndex={sectionIndex} />
-
-        {/* Upgrades (only for Rede) */}
-        {isNetwork && <UpgradesEditor form={form} sectionIndex={sectionIndex} />}
 
         {/* Special Note */}
         {section.specialNote && (

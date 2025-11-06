@@ -4,9 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useProfile } from '@/hooks/useProfile';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -16,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Trash2, DollarSign } from 'lucide-react';
 import { ProposalEditorForm } from './proposal-editor-schema';
+import { useEffect } from 'react';
 
 interface Props {
   form: UseFormReturn<ProposalEditorForm>;
@@ -51,14 +50,72 @@ export function PaymentConditionsEditor({ form }: Props) {
     }).format(value);
   };
 
+  const calculateTotal = () => {
+    const sections = form.getValues('sections');
+    return sections
+      .filter((s) => !s.excludeFromPayment)
+      .reduce((sum, s) => sum + s.subtotal, 0);
+  };
+
   const handleAdd = () => {
+    const total = calculateTotal();
     append({
       id: crypto.randomUUID(),
-      label: '',
-      amount: 0,
+      methodId: '',
+      methodName: '',
+      installments: 1,
+      installmentValue: total,
+      totalValue: total,
       details: '',
     });
   };
+
+  const handleMethodChange = (index: number, methodId: string) => {
+    const method = paymentMethods.find((m) => m.id === methodId);
+    const total = calculateTotal();
+    
+    if (method) {
+      form.setValue(`paymentConditions.${index}.methodId`, methodId);
+      form.setValue(`paymentConditions.${index}.methodName`, method.name);
+      
+      // Reset installments to 1 when changing method
+      form.setValue(`paymentConditions.${index}.installments`, 1);
+      form.setValue(`paymentConditions.${index}.installmentValue`, total);
+      form.setValue(`paymentConditions.${index}.totalValue`, total);
+    }
+  };
+
+  const handleInstallmentsChange = (index: number, installments: number) => {
+    const total = calculateTotal();
+    const method = paymentMethods.find(
+      (m) => m.id === form.getValues(`paymentConditions.${index}.methodId`)
+    );
+
+    if (method && installments > 0) {
+      form.setValue(`paymentConditions.${index}.installments`, installments);
+      
+      // Calculate installment value
+      const installmentValue = total / installments;
+      form.setValue(`paymentConditions.${index}.installmentValue`, installmentValue);
+      form.setValue(`paymentConditions.${index}.totalValue`, total);
+    }
+  };
+
+  // Recalculate when sections change
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name?.startsWith('sections')) {
+        const total = calculateTotal();
+        const conditions = form.getValues('paymentConditions');
+        conditions.forEach((_, index) => {
+          const installments = form.getValues(`paymentConditions.${index}.installments`) || 1;
+          form.setValue(`paymentConditions.${index}.totalValue`, total);
+          form.setValue(`paymentConditions.${index}.installmentValue`, total / installments);
+        });
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   return (
     <Card>
@@ -86,81 +143,84 @@ export function PaymentConditionsEditor({ form }: Props) {
             </Button>
           </div>
         ) : (
-          fields.map((field, index) => (
-            <div key={field.id} className="p-4 border rounded-lg space-y-4">
-              <div className="flex items-start justify-between">
-                <h4 className="font-medium">Condição {index + 1}</h4>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => remove(index)}
-                >
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
-              </div>
+          fields.map((field, index) => {
+            const condition = form.watch(`paymentConditions.${index}`);
+            const method = paymentMethods.find((m) => m.id === condition?.methodId);
+            const maxInstallments = method?.max_installments || 1;
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Label *</Label>
-                  <Input
-                    {...form.register(`paymentConditions.${index}.label`)}
-                    placeholder="Ex: 12x sem juros"
-                  />
+            return (
+              <div key={field.id} className="p-4 border rounded-lg space-y-4">
+                <div className="flex items-start justify-between">
+                  <h4 className="font-medium">Opção {index + 1}</h4>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => remove(index)}
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Valor *</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    {...form.register(`paymentConditions.${index}.amount`, {
-                      valueAsNumber: true,
-                    })}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Forma de Pagamento *</Label>
+                    <Select
+                      value={condition?.methodId || ''}
+                      onValueChange={(value) => handleMethodChange(index, value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {paymentMethods.map((method) => (
+                          <SelectItem key={method.id} value={method.id}>
+                            {method.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Número de Parcelas *</Label>
+                    <Select
+                      value={String(condition?.installments || 1)}
+                      onValueChange={(value) => handleInstallmentsChange(index, Number(value))}
+                      disabled={!condition?.methodId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: maxInstallments }, (_, i) => i + 1).map((num) => (
+                          <SelectItem key={num} value={String(num)}>
+                            {num}x
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label>Forma de Pagamento (opcional)</Label>
-                <Select
-                  value={form.watch(`paymentConditions.${index}.methodId`) || ''}
-                  onValueChange={(value) => {
-                    const method = paymentMethods.find((m) => m.id === value);
-                    form.setValue(`paymentConditions.${index}.methodId`, value, {
-                      shouldDirty: true,
-                    });
-                    if (method) {
-                      form.setValue(`paymentConditions.${index}.methodName`, method.name, {
-                        shouldDirty: true,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione (opcional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMethods.map((method) => (
-                      <SelectItem key={method.id} value={method.id}>
-                        {method.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {condition?.methodId && (
+                  <div className="p-3 bg-muted rounded-lg space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Valor da Parcela:</span>
+                      <span className="font-semibold">{formatCurrency(condition.installmentValue || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total:</span>
+                      <span className="font-bold text-primary">{formatCurrency(condition.totalValue || 0)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      {condition.installments}x de {formatCurrency(condition.installmentValue || 0)} = {formatCurrency(condition.totalValue || 0)}
+                    </p>
+                  </div>
+                )}
               </div>
-
-              <div className="space-y-2">
-                <Label>Detalhes/Observações (opcional)</Label>
-                <Textarea
-                  {...form.register(`paymentConditions.${index}.details`)}
-                  placeholder="Ex: Entrada de 30%, restante em 12x..."
-                  rows={2}
-                />
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </CardContent>
     </Card>

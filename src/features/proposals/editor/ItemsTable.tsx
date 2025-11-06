@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Trash2, Plus, Copy } from 'lucide-react';
+import { Trash2, Plus, Copy, ArrowUp } from 'lucide-react';
 import { ProposalEditorForm } from './proposal-editor-schema';
 import { ProductSearchDialog } from './ProductSearchDialog';
 import { useState, useEffect } from 'react';
@@ -22,6 +22,8 @@ interface Props {
 
 export function ItemsTable({ form, sectionIndex }: Props) {
   const [showProductSearch, setShowProductSearch] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [upgradeTargetIndex, setUpgradeTargetIndex] = useState<number | null>(null);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -56,7 +58,8 @@ export function ItemsTable({ form, sectionIndex }: Props) {
 
   const updateItemSubtotal = (itemIndex: number) => {
     const item = form.getValues(`sections.${sectionIndex}.items.${itemIndex}`);
-    const subtotal = item.qty * item.unitPrice;
+    const basePrice = item.upgradeUnitPrice || item.unitPrice;
+    const subtotal = item.qty * basePrice;
     form.setValue(`sections.${sectionIndex}.items.${itemIndex}.subtotal`, subtotal, {
       shouldDirty: true,
     });
@@ -107,6 +110,7 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                 <TableHead className="w-24">Qtd</TableHead>
                 <TableHead className="w-32">Unitário</TableHead>
                 <TableHead className="w-32">Subtotal</TableHead>
+                <TableHead className="w-48">Upgrade</TableHead>
                 <TableHead className="w-24 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -168,6 +172,47 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                     <TableCell className="font-semibold">
                       {formatCurrency(item.subtotal)}
                     </TableCell>
+                    <TableCell>
+                      {item.upgradeProductName ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <ArrowUp className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-medium">{item.upgradeProductName}</span>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            +{formatCurrency(item.upgradeDelta || 0)}
+                          </Badge>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              form.setValue(`sections.${sectionIndex}.items.${index}.upgradeProductId`, undefined);
+                              form.setValue(`sections.${sectionIndex}.items.${index}.upgradeProductName`, undefined);
+                              form.setValue(`sections.${sectionIndex}.items.${index}.upgradeUnitPrice`, undefined);
+                              form.setValue(`sections.${sectionIndex}.items.${index}.upgradeDelta`, undefined);
+                              updateItemSubtotal(index);
+                            }}
+                            className="text-xs"
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setUpgradeTargetIndex(index);
+                            setShowUpgradeDialog(true);
+                          }}
+                        >
+                          <ArrowUp className="w-4 h-4 mr-2" />
+                          Adicionar
+                        </Button>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
@@ -198,7 +243,7 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                 <TableCell className="font-bold text-lg">
                   {formatCurrency(form.watch(`sections.${sectionIndex}.subtotal`) || 0)}
                 </TableCell>
-                <TableCell></TableCell>
+                <TableCell colSpan={2}></TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -210,6 +255,30 @@ export function ItemsTable({ form, sectionIndex }: Props) {
         onClose={() => setShowProductSearch(false)}
         onSelect={handleAddProduct}
       />
+
+      {upgradeTargetIndex !== null && (
+        <ProductSearchDialog
+          open={showUpgradeDialog}
+          onClose={() => {
+            setShowUpgradeDialog(false);
+            setUpgradeTargetIndex(null);
+          }}
+          onSelect={(product) => {
+            const currentItem = form.getValues(`sections.${sectionIndex}.items.${upgradeTargetIndex}`);
+            const delta = product.sell_price - currentItem.unitPrice;
+            
+            form.setValue(`sections.${sectionIndex}.items.${upgradeTargetIndex}.upgradeProductId`, product.id);
+            form.setValue(`sections.${sectionIndex}.items.${upgradeTargetIndex}.upgradeProductName`, product.name);
+            form.setValue(`sections.${sectionIndex}.items.${upgradeTargetIndex}.upgradeUnitPrice`, product.sell_price);
+            form.setValue(`sections.${sectionIndex}.items.${upgradeTargetIndex}.upgradeDelta`, delta);
+            
+            updateItemSubtotal(upgradeTargetIndex);
+            
+            setShowUpgradeDialog(false);
+            setUpgradeTargetIndex(null);
+          }}
+        />
+      )}
     </div>
   );
 }
