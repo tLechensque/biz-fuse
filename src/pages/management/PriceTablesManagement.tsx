@@ -189,7 +189,18 @@ export default function PriceTablesManagement() {
 
     setUploadingPdf(true);
     try {
-      const fileName = `${profile.organization_id}/${Date.now()}_${file.name}`;
+      // Sanitizar nome do arquivo: remover acentos, espaços e caracteres especiais
+      const sanitizeFileName = (name: string) => {
+        return name
+          .normalize('NFD') // Decompor caracteres acentuados
+          .replace(/[\u0300-\u036f]/g, '') // Remover diacríticos
+          .replace(/[^a-zA-Z0-9._-]/g, '_') // Substituir caracteres especiais por underscore
+          .replace(/_+/g, '_') // Remover underscores consecutivos
+          .toLowerCase();
+      };
+
+      const sanitizedName = sanitizeFileName(file.name);
+      const fileName = `${profile.organization_id}/${Date.now()}_${sanitizedName}`;
       
       const { data, error: uploadError } = await supabase.storage
         .from('price-lists')
