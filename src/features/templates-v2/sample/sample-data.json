@@ -1,0 +1,119 @@
+{
+  "proposal": {
+    "id": "sample-001",
+    "code": "PROP-2025-001",
+    "title": "Proposta de Iluminação Residencial",
+    "issueDate": "2025-01-06",
+    "validityDays": 15,
+    "status": "DRAFT",
+    "version": 1
+  },
+  "organization": {
+    "name": "Starvai Soluções",
+    "email": "contato@starvai.com",
+    "phone": "(11) 98765-4321",
+    "whatsapp": "(11) 98765-4321",
+    "cnpj": "12.345.678/0001-90",
+    "address": "Rua das Flores, 123 - São Paulo/SP",
+    "logoUrl": "https://via.placeholder.com/150x60?text=Starvai"
+  },
+  "client": {
+    "name": "João Silva",
+    "email": "joao.silva@example.com",
+    "phone": "(11) 91234-5678",
+    "address": "Av. Paulista, 1000",
+    "city": "São Paulo",
+    "state": "SP"
+  },
+  "salesperson": {
+    "name": "Maria Santos",
+    "email": "maria@starvai.com",
+    "phone": "(11) 98888-7777"
+  },
+  "items": [
+    {
+      "id": "item-1",
+      "group": "Iluminação",
+      "brand": {
+        "id": "brand-1",
+        "name": "Philips"
+      },
+      "product": {
+        "id": "prod-1",
+        "name": "Lâmpada LED Inteligente",
+        "model": "HUE-2023",
+        "sku": "PH-LED-HUE-001"
+      },
+      "qty": 10,
+      "unitPrice": 89.90,
+      "subtotal": 899.00,
+      "simpleDescription": "Lâmpada LED inteligente com controle por app",
+      "detailedDescription": "Lâmpada LED inteligente com controle WiFi, 16 milhões de cores, compatível com Alexa e Google Home",
+      "imageUrl": "https://via.placeholder.com/100?text=LED"
+    },
+    {
+      "id": "item-2",
+      "group": "Iluminação",
+      "brand": {
+        "id": "brand-2",
+        "name": "Elgin"
+      },
+      "product": {
+        "id": "prod-2",
+        "name": "Spot LED Embutir",
+        "model": "SP-5W",
+        "sku": "EL-SPOT-5W"
+      },
+      "qty": 20,
+      "unitPrice": 25.50,
+      "subtotal": 510.00,
+      "simpleDescription": "Spot LED 5W luz branca",
+      "detailedDescription": "Spot LED de embutir 5W, temperatura 6500K, bivolt, acabamento branco"
+    },
+    {
+      "id": "item-3",
+      "group": "Automação",
+      "brand": {
+        "id": "brand-3",
+        "name": "Sonoff"
+      },
+      "product": {
+        "id": "prod-3",
+        "name": "Interruptor WiFi Touch",
+        "model": "T0-1CH",
+        "sku": "SF-T0-1CH"
+      },
+      "qty": 5,
+      "unitPrice": 45.00,
+      "subtotal": 225.00,
+      "simpleDescription": "Interruptor inteligente 1 canal",
+      "detailedDescription": "Interruptor touch WiFi, controle por app, compatível com Alexa e Google Home"
+    }
+  ],
+  "upgrades": [],
+  "payments": [
+    {
+      "label": "À Vista",
+      "amount": 1634.00,
+      "details": "Pagamento em até 5 dias úteis",
+      "method": "PIX"
+    },
+    {
+      "label": "Parcelado 3x",
+      "amount": 544.67,
+      "details": "3 parcelas sem juros",
+      "method": "Cartão"
+    }
+  ],
+  "notes": [
+    "Instalação inclusa",
+    "Garantia de 12 meses",
+    "Suporte técnico gratuito por 3 meses"
+  ],
+  "totals": {
+    "subtotal": 1634.00,
+    "upgradesTotal": 0,
+    "total": 1634.00,
+    "margin": 35.5
+  }
+}
