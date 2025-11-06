@@ -9,8 +9,19 @@ interface HistoryState {
 }
 
 export function useTemplateState(initialTemplate: TemplateV2, initialTokens: DesignTokens) {
+  // Garantir que sempre temos valores válidos
+  const validInitialTemplate = initialTemplate || {
+    name: 'Novo Template',
+    version: 'v2',
+    root: {
+      type: 'Frame',
+      props: { width: '210mm', height: '297mm', padding: '20mm' },
+      children: []
+    }
+  } as TemplateV2;
+
   const [state, setState] = useState<HistoryState>({
-    template: initialTemplate,
+    template: validInitialTemplate,
     tokens: initialTokens,
   });
   

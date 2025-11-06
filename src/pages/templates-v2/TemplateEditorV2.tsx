@@ -36,6 +36,11 @@ export default function TemplateEditorV2() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [rightPanel, setRightPanel] = useState<'inspector' | 'data' | 'tokens'>('inspector');
 
+  // Garantir que temos um template válido
+  const validTemplate = exampleTemplate && typeof exampleTemplate === 'object' 
+    ? (exampleTemplate as TemplateV2) 
+    : null;
+
   const {
     template,
     tokens,
@@ -47,7 +52,18 @@ export default function TemplateEditorV2() {
     updateElementAtPath,
     addElementAtPath,
     removeElementAtPath,
-  } = useTemplateState(exampleTemplate as TemplateV2, DEFAULT_TOKENS);
+  } = useTemplateState(
+    validTemplate || {
+      name: 'Novo Template',
+      version: 'v2',
+      root: {
+        type: 'Frame',
+        props: { width: '210mm', height: '297mm', padding: '20mm' },
+        children: []
+      }
+    } as TemplateV2,
+    DEFAULT_TOKENS
+  );
 
   // Debounce para autosave
   const debouncedTemplate = useDebounce(template, 2000);
