@@ -11,6 +11,7 @@ import { ProposalHeaderForm } from '@/features/proposals/editor/ProposalHeaderFo
 import { ProposalSectionsManager } from '@/features/proposals/editor/ProposalSectionsManager';
 import { PaymentConditionsEditor } from '@/features/proposals/editor/PaymentConditionsEditor';
 import { NotesEditor } from '@/features/proposals/editor/NotesEditor';
+import { TaxesAndShippingEditor } from '@/features/proposals/editor/TaxesAndShippingEditor';
 import { TotalsCard } from '@/features/proposals/editor/TotalsCard';
 import { toast } from 'sonner';
 
@@ -150,6 +151,9 @@ export default function ProposalEditorPage() {
 
             {/* Sections */}
             <ProposalSectionsManager form={form} />
+
+            {/* Taxes and Shipping */}
+            <TaxesAndShippingEditor form={form} />
 
             {/* Payment Conditions */}
             <PaymentConditionsEditor form={form} />

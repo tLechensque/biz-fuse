@@ -15,6 +15,7 @@ export const ProposalItemSchema = z.object({
   discountEnabled: z.boolean().default(false),
   discountType: z.enum(['percentage', 'fixed']).default('percentage'), // tipo de desconto
   discountValue: z.number().min(0).default(0), // valor ou % de desconto
+  hasAutoDiscount: z.boolean().optional().default(false), // se desconto foi aplicado automaticamente
   subtotal: z.number(),
   simpleDescription: z.string().optional(),
   detailedDescription: z.string().optional(),
@@ -59,6 +60,14 @@ export const NotesSchema = z.object({
   exclusions: z.array(z.string()).default([]),
 });
 
+// ===== Taxes and Shipping =====
+export const TaxesAndShippingSchema = z.object({
+  shippingCost: z.number().default(0),
+  taxPercentage: z.number().default(0),
+  taxAmount: z.number().default(0),
+  notes: z.string().optional(),
+});
+
 // ===== Full Proposal Editor Form =====
 export const ProposalEditorFormSchema = z.object({
   // Header
@@ -78,6 +87,9 @@ export const ProposalEditorFormSchema = z.object({
   // Notes
   notes: NotesSchema.default({}),
   
+  // Taxes and Shipping
+  taxesAndShipping: TaxesAndShippingSchema.optional(),
+  
   // Flags
   showDetailedDescriptions: z.boolean().default(false),
 });
@@ -87,6 +99,7 @@ export type ProposalItem = z.infer<typeof ProposalItemSchema>;
 export type ProposalSection = z.infer<typeof ProposalSectionSchema>;
 export type PaymentCondition = z.infer<typeof PaymentConditionSchema>;
 export type Notes = z.infer<typeof NotesSchema>;
+export type TaxesAndShipping = z.infer<typeof TaxesAndShippingSchema>;
 export type ProposalEditorForm = z.infer<typeof ProposalEditorFormSchema>;
 
 // ===== Default Sections (templates) =====

@@ -32,6 +32,12 @@ export function useProposalEditor(proposalId?: string) {
         inclusions: [],
         exclusions: [],
       },
+      taxesAndShipping: {
+        shippingCost: 0,
+        taxPercentage: 0,
+        taxAmount: 0,
+        notes: '',
+      },
       showDetailedDescriptions: false,
     },
   });

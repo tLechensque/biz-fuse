@@ -73,9 +73,7 @@ export function ItemsTable({ form, sectionIndex }: Props) {
 
   const handleAddProduct = (product: any) => {
     // Aceita tanto o objeto 'raw' do banco quanto o objeto mapeado
-    const sellPrice = Number(
-      product.sell_price ?? product.unitPrice ?? 0
-    );
+    const sellPrice = Number(product.sell_price ?? product.unitPrice ?? 0);
     const costPrice = Number(product.cost_price ?? product.costPrice ?? 0);
     const brandId = product.brand_id ?? product.brandId ?? product.brands?.id ?? '';
     const brandName = product.brand ?? product.brandName ?? product.brands?.name ?? '';
@@ -86,16 +84,15 @@ export function ItemsTable({ form, sectionIndex }: Props) {
     // Check if there's an active discount for this product
     let discountEnabled = false;
     let discountValue = 0;
+    let hasAutoDiscount = false;
+    
     const applicableDiscount = activeDiscounts.find(discount => {
-      // Check if discount applies to this specific product
       if (discount.product_ids && discount.product_ids.includes(productId)) {
         return true;
       }
-      // Check if discount applies to this product's brand
       if (brandId && discount.brand_ids && discount.brand_ids.includes(brandId)) {
         return true;
       }
-      // Check if discount applies to this product's category
       if (categoryId && discount.category_ids && discount.category_ids.includes(categoryId)) {
         return true;
       }
@@ -105,6 +102,7 @@ export function ItemsTable({ form, sectionIndex }: Props) {
     if (applicableDiscount) {
       discountEnabled = true;
       discountValue = applicableDiscount.discount_percentage || 0;
+      hasAutoDiscount = true;
     }
 
     const baseSubtotal = sellPrice * 1;
@@ -129,14 +127,11 @@ export function ItemsTable({ form, sectionIndex }: Props) {
       simpleDescription: product.simple_description ?? product.simpleDescription ?? '',
       detailedDescription: product.full_description ?? product.detailedDescription ?? '',
       imageUrl,
+      hasAutoDiscount,
     });
 
     setShowProductSearch(false);
-
-    // Atualiza subtotal da seção logo após inserir
-    setTimeout(() => {
-      updateSectionSubtotal();
-    }, 0);
+    setTimeout(() => updateSectionSubtotal(), 0);
   };
 
   const handleRemove = (index: number) => {
@@ -251,13 +246,19 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                     <TableCell>
                       <Input
                         type="number"
-                        min={0.01}
-                        step={0.01}
+                        min={1}
+                        step={1}
                         {...form.register(
                           `sections.${sectionIndex}.items.${index}.qty`,
                           { valueAsNumber: true }
                         )}
-                        onChange={() => updateItemSubtotal(index)}
+                        onBlur={() => updateItemSubtotal(index)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            updateItemSubtotal(index);
+                          }
+                        }}
                         className="w-20"
                       />
                     </TableCell>
@@ -270,9 +271,20 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                           `sections.${sectionIndex}.items.${index}.unitPrice`,
                           { valueAsNumber: true }
                         )}
-                        onChange={() => updateItemSubtotal(index)}
+                        onBlur={() => updateItemSubtotal(index)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            updateItemSubtotal(index);
+                          }
+                        }}
                         className="w-28"
                       />
+                      {item?.hasAutoDiscount && (
+                        <p className="text-xs text-primary mt-1">
+                          ✓ Desconto aplicado automaticamente
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="space-y-2">
@@ -324,7 +336,13 @@ export function ItemsTable({ form, sectionIndex }: Props) {
                                 `sections.${sectionIndex}.items.${index}.discountValue`,
                                 { valueAsNumber: true }
                               )}
-                              onChange={() => updateItemSubtotal(index)}
+                              onBlur={() => updateItemSubtotal(index)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  updateItemSubtotal(index);
+                                }
+                              }}
                               className="w-24"
                             />
                           </div>
